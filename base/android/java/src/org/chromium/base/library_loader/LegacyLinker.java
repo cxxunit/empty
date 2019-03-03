@@ -38,21 +38,21 @@ class LegacyLinker extends Linker {
     private static final String TAG = "LibraryLoader";
 
     // Becomes true after linker initialization.
-    private boolean mInitialized;
+    private boolean mInitialized = false;
 
     // Set to true if this runs in the browser process. Disabled by initServiceProcess().
     private boolean mInBrowserProcess = true;
 
     // Becomes true to indicate this process needs to wait for a shared RELRO in
     // finishLibraryLoad().
-    private boolean mWaitForSharedRelros;
+    private boolean mWaitForSharedRelros = false;
 
     // Becomes true when initialization determines that the browser process can use the
     // shared RELRO.
-    private boolean mBrowserUsesSharedRelro;
+    private boolean mBrowserUsesSharedRelro = false;
 
     // The map of all RELRO sections either created or used in this process.
-    private Bundle mSharedRelros;
+    private Bundle mSharedRelros = null;
 
     // Current common random base load address. A value of -1 indicates not yet initialized.
     private long mBaseLoadAddress = -1;
@@ -62,10 +62,10 @@ class LegacyLinker extends Linker {
     private long mCurrentLoadAddress = -1;
 
     // Becomes true once prepareLibraryLoad() has been called.
-    private boolean mPrepareLibraryLoadCalled;
+    private boolean mPrepareLibraryLoadCalled = false;
 
     // The map of libraries that are currently loaded in this process.
-    private HashMap<String, LibInfo> mLoadedLibraries;
+    private HashMap<String, LibInfo> mLoadedLibraries = null;
 
     // Private singleton constructor, and singleton factory method.
     private LegacyLinker() { }
@@ -113,8 +113,8 @@ class LegacyLinker extends Linker {
                 mBrowserUsesSharedRelro = true;
                 break;
             default:
-                Log.wtf(TAG, "FATAL: illegal shared RELRO config");
-                throw new AssertionError();
+                assert false : "Unreached";
+                break;
         }
 
         mInitialized = true;

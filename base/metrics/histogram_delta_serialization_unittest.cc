@@ -14,12 +14,11 @@
 namespace base {
 
 TEST(HistogramDeltaSerializationTest, DeserializeHistogramAndAddSamples) {
-  std::unique_ptr<StatisticsRecorder> statistic_recorder(
-      StatisticsRecorder::CreateTemporaryForTesting());
+  StatisticsRecorder statistic_recorder;
   HistogramDeltaSerialization serializer("HistogramDeltaSerializationTest");
   std::vector<std::string> deltas;
   // Nothing was changed yet.
-  serializer.PrepareAndSerializeDeltas(&deltas, true);
+  serializer.PrepareAndSerializeDeltas(&deltas);
   EXPECT_TRUE(deltas.empty());
 
   HistogramBase* histogram = Histogram::FactoryGet(
@@ -29,13 +28,13 @@ TEST(HistogramDeltaSerializationTest, DeserializeHistogramAndAddSamples) {
   histogram->Add(100);
   histogram->Add(1000);
 
-  serializer.PrepareAndSerializeDeltas(&deltas, true);
+  serializer.PrepareAndSerializeDeltas(&deltas);
   EXPECT_FALSE(deltas.empty());
 
   HistogramDeltaSerialization::DeserializeAndAddSamples(deltas);
 
   // The histogram has kIPCSerializationSourceFlag. So samples will be ignored.
-  std::unique_ptr<HistogramSamples> snapshot(histogram->SnapshotSamples());
+  scoped_ptr<HistogramSamples> snapshot(histogram->SnapshotSamples());
   EXPECT_EQ(1, snapshot->GetCount(1));
   EXPECT_EQ(1, snapshot->GetCount(10));
   EXPECT_EQ(1, snapshot->GetCount(100));
@@ -45,7 +44,7 @@ TEST(HistogramDeltaSerializationTest, DeserializeHistogramAndAddSamples) {
   histogram->ClearFlags(HistogramBase::kIPCSerializationSourceFlag);
   HistogramDeltaSerialization::DeserializeAndAddSamples(deltas);
 
-  std::unique_ptr<HistogramSamples> snapshot2(histogram->SnapshotSamples());
+  scoped_ptr<HistogramSamples> snapshot2(histogram->SnapshotSamples());
   EXPECT_EQ(2, snapshot2->GetCount(1));
   EXPECT_EQ(2, snapshot2->GetCount(10));
   EXPECT_EQ(2, snapshot2->GetCount(100));

@@ -25,8 +25,6 @@
   SOFTWARE.
 */
 
-#include "base/third_party/xdg_user_dirs/xdg_user_dir_lookup.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

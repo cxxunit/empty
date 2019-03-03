@@ -10,7 +10,9 @@
 
 namespace base {
 
-WaitableEventWatcher::WaitableEventWatcher() = default;
+WaitableEventWatcher::WaitableEventWatcher()
+    : event_(NULL) {
+}
 
 WaitableEventWatcher::~WaitableEventWatcher() {
 }
@@ -27,6 +29,10 @@ void WaitableEventWatcher::StopWatching() {
   callback_.Reset();
   event_ = NULL;
   watcher_.StopWatching();
+}
+
+WaitableEvent* WaitableEventWatcher::GetWatchedEvent() {
+  return event_;
 }
 
 void WaitableEventWatcher::OnObjectSignaled(HANDLE h) {

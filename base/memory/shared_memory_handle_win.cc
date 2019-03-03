@@ -9,15 +9,13 @@
 namespace base {
 
 SharedMemoryHandle::SharedMemoryHandle()
-    : handle_(nullptr), pid_(kNullProcessId), ownership_passes_to_ipc_(false) {}
+    : handle_(nullptr), pid_(kNullProcessId) {}
 
 SharedMemoryHandle::SharedMemoryHandle(HANDLE h, base::ProcessId pid)
-    : handle_(h), pid_(pid), ownership_passes_to_ipc_(false) {}
+    : handle_(h), pid_(pid) {}
 
 SharedMemoryHandle::SharedMemoryHandle(const SharedMemoryHandle& handle)
-    : handle_(handle.handle_),
-      pid_(handle.pid_),
-      ownership_passes_to_ipc_(handle.ownership_passes_to_ipc_) {}
+    : handle_(handle.handle_), pid_(handle.pid_) {}
 
 SharedMemoryHandle& SharedMemoryHandle::operator=(
     const SharedMemoryHandle& handle) {
@@ -26,7 +24,6 @@ SharedMemoryHandle& SharedMemoryHandle::operator=(
 
   handle_ = handle.handle_;
   pid_ = handle.pid_;
-  ownership_passes_to_ipc_ = handle.ownership_passes_to_ipc_;
   return *this;
 }
 
@@ -57,7 +54,7 @@ bool SharedMemoryHandle::BelongsToCurrentProcess() const {
 }
 
 bool SharedMemoryHandle::NeedsBrokering() const {
-  return BelongsToCurrentProcess();
+  return false;
 }
 
 HANDLE SharedMemoryHandle::GetHandle() const {
@@ -66,14 +63,6 @@ HANDLE SharedMemoryHandle::GetHandle() const {
 
 base::ProcessId SharedMemoryHandle::GetPID() const {
   return pid_;
-}
-
-void SharedMemoryHandle::SetOwnershipPassesToIPC(bool ownership_passes) {
-  ownership_passes_to_ipc_ = ownership_passes;
-}
-
-bool SharedMemoryHandle::OwnershipPassesToIPC() const {
-  return ownership_passes_to_ipc_;
 }
 
 }  // namespace base

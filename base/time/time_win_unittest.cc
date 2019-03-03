@@ -19,11 +19,6 @@
 namespace base {
 namespace {
 
-// For TimeDelta::ConstexprInitialization
-constexpr int kExpectedDeltaInMilliseconds = 10;
-constexpr TimeDelta kConstexprTimeDelta =
-    TimeDelta::FromMilliseconds(kExpectedDeltaInMilliseconds);
-
 class MockTimeTicks : public TimeTicks {
  public:
   static DWORD Ticker() {
@@ -293,11 +288,6 @@ TEST(TimeTicks, FromQPCValue) {
         << "ticks=" << ticks << ", to be converted via logic path: "
         << (ticks < Time::kQPCOverflowThreshold ? "FAST" : "SAFE");
   }
-}
-
-TEST(TimeDelta, ConstexprInitialization) {
-  // Make sure that TimeDelta works around crbug.com/635974
-  EXPECT_EQ(kExpectedDeltaInMilliseconds, kConstexprTimeDelta.InMilliseconds());
 }
 
 }  // namespace base

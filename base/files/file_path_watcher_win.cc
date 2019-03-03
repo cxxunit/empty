@@ -11,7 +11,7 @@
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/threading/sequenced_task_runner_handle.h"
+#include "base/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "base/win/object_watcher.h"
 
@@ -20,19 +20,25 @@ namespace base {
 namespace {
 
 class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
-                            public base::win::ObjectWatcher::Delegate {
+                            public base::win::ObjectWatcher::Delegate,
+                            public MessageLoop::DestructionObserver {
  public:
   FilePathWatcherImpl()
       : handle_(INVALID_HANDLE_VALUE),
         recursive_watch_(false) {}
 
-  // FilePathWatcher::PlatformDelegate:
+  // FilePathWatcher::PlatformDelegate overrides.
   bool Watch(const FilePath& path,
              bool recursive,
              const FilePathWatcher::Callback& callback) override;
   void Cancel() override;
 
-  // base::win::ObjectWatcher::Delegate:
+  // Deletion of the FilePathWatcher will call Cancel() to dispose of this
+  // object in the right thread. This also observes destruction of the required
+  // cleanup thread, in case it quits before Cancel() is called.
+  void WillDestroyCurrentMessageLoop() override;
+
+  // Callback from MessageLoopForIO.
   void OnObjectSignaled(HANDLE object) override;
 
  private:
@@ -51,6 +57,9 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
 
   // Destroy the watch handle.
   void DestroyWatch();
+
+  // Cleans up and stops observing the |task_runner_| thread.
+  void CancelOnMessageLoopThread() override;
 
   // Callback to notify upon changes.
   FilePathWatcher::Callback callback_;
@@ -83,10 +92,11 @@ bool FilePathWatcherImpl::Watch(const FilePath& path,
                                 const FilePathWatcher::Callback& callback) {
   DCHECK(target_.value().empty());  // Can only watch one path.
 
-  set_task_runner(SequencedTaskRunnerHandle::Get());
+  set_task_runner(ThreadTaskRunnerHandle::Get());
   callback_ = callback;
   target_ = path;
   recursive_watch_ = recursive;
+  MessageLoop::current()->AddDestructionObserver(this);
 
   File::Info file_info;
   if (GetFileInfo(target_, &file_info)) {
@@ -109,13 +119,30 @@ void FilePathWatcherImpl::Cancel() {
     return;
   }
 
-  DCHECK(task_runner()->RunsTasksOnCurrentThread());
+  // Switch to the file thread if necessary so we can stop |watcher_|.
+  if (!task_runner()->BelongsToCurrentThread()) {
+    task_runner()->PostTask(FROM_HERE, Bind(&FilePathWatcher::CancelWatch,
+                                            make_scoped_refptr(this)));
+  } else {
+    CancelOnMessageLoopThread();
+  }
+}
+
+void FilePathWatcherImpl::CancelOnMessageLoopThread() {
+  DCHECK(task_runner()->BelongsToCurrentThread());
   set_cancelled();
 
   if (handle_ != INVALID_HANDLE_VALUE)
     DestroyWatch();
 
-  callback_.Reset();
+  if (!callback_.is_null()) {
+    MessageLoop::current()->RemoveDestructionObserver(this);
+    callback_.Reset();
+  }
+}
+
+void FilePathWatcherImpl::WillDestroyCurrentMessageLoop() {
+  CancelOnMessageLoopThread();
 }
 
 void FilePathWatcherImpl::OnObjectSignaled(HANDLE object) {
@@ -268,7 +295,6 @@ void FilePathWatcherImpl::DestroyWatch() {
 }  // namespace
 
 FilePathWatcher::FilePathWatcher() {
-  sequence_checker_.DetachFromSequence();
   impl_ = new FilePathWatcherImpl();
 }
 

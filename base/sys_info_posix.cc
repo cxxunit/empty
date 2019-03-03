@@ -28,11 +28,6 @@
 #include <sys/statvfs.h>
 #endif
 
-#if defined(OS_LINUX)
-#include <linux/magic.h>
-#include <sys/vfs.h>
-#endif
-
 namespace {
 
 #if !defined(OS_OPENBSD)
@@ -78,52 +73,6 @@ base::LazyInstance<
     base::internal::LazySysInfoValue<int64_t, AmountOfVirtualMemory>>::Leaky
     g_lazy_virtual_memory = LAZY_INSTANCE_INITIALIZER;
 
-#if defined(OS_LINUX)
-bool IsStatsZeroIfUnlimited(const base::FilePath& path) {
-  struct statfs stats;
-
-  if (HANDLE_EINTR(statfs(path.value().c_str(), &stats)) != 0)
-    return false;
-
-  switch (stats.f_type) {
-    case TMPFS_MAGIC:
-    case HUGETLBFS_MAGIC:
-    case RAMFS_MAGIC:
-      return true;
-  }
-  return false;
-}
-#endif
-
-bool GetDiskSpaceInfo(const base::FilePath& path,
-                      int64_t* available_bytes,
-                      int64_t* total_bytes) {
-  struct statvfs stats;
-  if (HANDLE_EINTR(statvfs(path.value().c_str(), &stats)) != 0)
-    return false;
-
-#if defined(OS_LINUX)
-  const bool zero_size_means_unlimited =
-      stats.f_blocks == 0 && IsStatsZeroIfUnlimited(path);
-#else
-  const bool zero_size_means_unlimited = false;
-#endif
-
-  if (available_bytes) {
-    *available_bytes =
-        zero_size_means_unlimited
-            ? std::numeric_limits<int64_t>::max()
-            : static_cast<int64_t>(stats.f_bavail) * stats.f_frsize;
-  }
-
-  if (total_bytes) {
-    *total_bytes = zero_size_means_unlimited
-                       ? std::numeric_limits<int64_t>::max()
-                       : static_cast<int64_t>(stats.f_blocks) * stats.f_frsize;
-  }
-  return true;
-}
-
 }  // namespace
 
 namespace base {
@@ -143,20 +92,10 @@ int64_t SysInfo::AmountOfVirtualMemory() {
 int64_t SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
   base::ThreadRestrictions::AssertIOAllowed();
 
-  int64_t available;
-  if (!GetDiskSpaceInfo(path, &available, nullptr))
+  struct statvfs stats;
+  if (HANDLE_EINTR(statvfs(path.value().c_str(), &stats)) != 0)
     return -1;
-  return available;
-}
-
-// static
-int64_t SysInfo::AmountOfTotalDiskSpace(const FilePath& path) {
-  base::ThreadRestrictions::AssertIOAllowed();
-
-  int64_t total;
-  if (!GetDiskSpaceInfo(path, nullptr, &total))
-    return -1;
-  return total;
+  return static_cast<int64_t>(stats.f_bavail) * stats.f_frsize;
 }
 
 #if !defined(OS_MACOSX) && !defined(OS_ANDROID)

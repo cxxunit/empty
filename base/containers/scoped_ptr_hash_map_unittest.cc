@@ -4,9 +4,7 @@
 
 #include "base/containers/scoped_ptr_hash_map.h"
 
-#include <memory>
-
-#include "base/memory/ptr_util.h"
+#include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -58,9 +56,8 @@ TEST(ScopedPtrHashMapTest, CustomDeleter) {
   DeleteCounter::ResetCounter();
   CountingDeleter::ResetCounter();
   {
-    ScopedPtrHashMap<int, std::unique_ptr<DeleteCounter, CountingDeleter>> map;
-    map.set(key,
-            std::unique_ptr<DeleteCounter, CountingDeleter>(new DeleteCounter));
+    ScopedPtrHashMap<int, scoped_ptr<DeleteCounter, CountingDeleter>> map;
+    map.set(key, scoped_ptr<DeleteCounter, CountingDeleter>(new DeleteCounter));
   }
   EXPECT_EQ(1, DeleteCounter::delete_count());
   EXPECT_EQ(1, CountingDeleter::count());
@@ -69,9 +66,9 @@ TEST(ScopedPtrHashMapTest, CustomDeleter) {
   DeleteCounter::ResetCounter();
   CountingDeleter::ResetCounter();
   {
-    ScopedPtrHashMap<int, std::unique_ptr<DeleteCounter, CountingDeleter>> map;
-    map.erase(map.set(key, std::unique_ptr<DeleteCounter, CountingDeleter>(
-                               new DeleteCounter)));
+    ScopedPtrHashMap<int, scoped_ptr<DeleteCounter, CountingDeleter>> map;
+    map.erase(map.set(
+        key, scoped_ptr<DeleteCounter, CountingDeleter>(new DeleteCounter)));
     EXPECT_EQ(1, DeleteCounter::delete_count());
     EXPECT_EQ(1, CountingDeleter::count());
   }
@@ -82,13 +79,10 @@ TEST(ScopedPtrHashMapTest, CustomDeleter) {
   DeleteCounter::ResetCounter();
   CountingDeleter::ResetCounter();
   {
-    ScopedPtrHashMap<int, std::unique_ptr<DeleteCounter, CountingDeleter>> map;
-    map.set(key,
-            std::unique_ptr<DeleteCounter, CountingDeleter>(new DeleteCounter));
-    map.set(key,
-            std::unique_ptr<DeleteCounter, CountingDeleter>(new DeleteCounter));
-    map.set(key,
-            std::unique_ptr<DeleteCounter, CountingDeleter>(new DeleteCounter));
+    ScopedPtrHashMap<int, scoped_ptr<DeleteCounter, CountingDeleter>> map;
+    map.set(key, scoped_ptr<DeleteCounter, CountingDeleter>(new DeleteCounter));
+    map.set(key, scoped_ptr<DeleteCounter, CountingDeleter>(new DeleteCounter));
+    map.set(key, scoped_ptr<DeleteCounter, CountingDeleter>(new DeleteCounter));
     EXPECT_EQ(2, DeleteCounter::delete_count());
     EXPECT_EQ(2, CountingDeleter::count());
   }
@@ -99,9 +93,9 @@ TEST(ScopedPtrHashMapTest, CustomDeleter) {
 // Test that using a value type from a namespace containing an ignore_result
 // function compiles correctly.
 TEST(ScopedPtrHashMapTest, IgnoreResultCompile) {
-  ScopedPtrHashMap<int, std::unique_ptr<namespace_with_ignore_result::Value>>
+  ScopedPtrHashMap<int, scoped_ptr<namespace_with_ignore_result::Value>>
       scoped_map;
-  scoped_map.add(1, WrapUnique(new namespace_with_ignore_result::Value));
+  scoped_map.add(1, make_scoped_ptr(new namespace_with_ignore_result::Value));
 }
 
 }  // namespace

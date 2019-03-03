@@ -5,12 +5,10 @@
 #ifndef BASE_TRACE_EVENT_MEMORY_DUMP_SESSION_STATE_H_
 #define BASE_TRACE_EVENT_MEMORY_DUMP_SESSION_STATE_H_
 
-#include <memory>
-
 #include "base/base_export.h"
+#include "base/memory/ref_counted.h"
 #include "base/trace_event/heap_profiler_stack_frame_deduplicator.h"
 #include "base/trace_event/heap_profiler_type_name_deduplicator.h"
-#include "base/trace_event/trace_config.h"
 
 namespace base {
 namespace trace_event {
@@ -20,33 +18,21 @@ namespace trace_event {
 class BASE_EXPORT MemoryDumpSessionState
     : public RefCountedThreadSafe<MemoryDumpSessionState> {
  public:
-  MemoryDumpSessionState();
+  MemoryDumpSessionState(
+      const scoped_refptr<StackFrameDeduplicator>& stack_frame_deduplicator,
+      const scoped_refptr<TypeNameDeduplicator>& type_name_deduplicator);
 
   // Returns the stack frame deduplicator that should be used by memory dump
   // providers when doing a heap dump.
-  StackFrameDeduplicator* stack_frame_deduplicator() const {
+  StackFrameDeduplicator* stack_frame_deduplicator() {
     return stack_frame_deduplicator_.get();
   }
 
-  void SetStackFrameDeduplicator(
-      std::unique_ptr<StackFrameDeduplicator> stack_frame_deduplicator);
-
   // Returns the type name deduplicator that should be used by memory dump
   // providers when doing a heap dump.
-  TypeNameDeduplicator* type_name_deduplicator() const {
+  TypeNameDeduplicator* type_name_deduplicator() {
     return type_name_deduplicator_.get();
   }
-
-  void SetTypeNameDeduplicator(
-      std::unique_ptr<TypeNameDeduplicator> type_name_deduplicator);
-
-  const TraceConfig::MemoryDumpConfig& memory_dump_config() const {
-    return memory_dump_config_;
-  }
-
-  void SetMemoryDumpConfig(const TraceConfig::MemoryDumpConfig& config);
-
-  bool is_polling_enabled() { return is_polling_enabled_; }
 
  private:
   friend class RefCountedThreadSafe<MemoryDumpSessionState>;
@@ -54,18 +40,11 @@ class BASE_EXPORT MemoryDumpSessionState
 
   // Deduplicates backtraces in heap dumps so they can be written once when the
   // trace is finalized.
-  std::unique_ptr<StackFrameDeduplicator> stack_frame_deduplicator_;
+  scoped_refptr<StackFrameDeduplicator> stack_frame_deduplicator_;
 
   // Deduplicates type names in heap dumps so they can be written once when the
   // trace is finalized.
-  std::unique_ptr<TypeNameDeduplicator> type_name_deduplicator_;
-
-  // The memory dump config, copied at the time when the tracing session was
-  // started.
-  TraceConfig::MemoryDumpConfig memory_dump_config_;
-
-  // True if memory polling is enabled by the config in the tracing session.
-  bool is_polling_enabled_;
+  scoped_refptr<TypeNameDeduplicator> type_name_deduplicator_;
 };
 
 }  // namespace trace_event

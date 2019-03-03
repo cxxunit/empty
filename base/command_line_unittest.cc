@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/command_line.h"
-
-#include <memory>
 #include <string>
 #include <vector>
 
+#include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/macros.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -391,8 +390,7 @@ TEST(CommandLineTest, Init) {
 
 // Test that copies of CommandLine have a valid StringPiece map.
 TEST(CommandLineTest, Copy) {
-  std::unique_ptr<CommandLine> initial(
-      new CommandLine(CommandLine::NO_PROGRAM));
+  scoped_ptr<CommandLine> initial(new CommandLine(CommandLine::NO_PROGRAM));
   initial->AppendSwitch("a");
   initial->AppendSwitch("bbbbbbbbbbbbbbb");
   initial->AppendSwitch("c");

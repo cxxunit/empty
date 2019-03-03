@@ -10,9 +10,11 @@
 #include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/win/current_module.h"
 #include "base/win/scoped_co_mem.h"
 #include "base/win/windows_version.h"
+
+// http://blogs.msdn.com/oldnewthing/archive/2004/10/25/247180.aspx
+extern "C" IMAGE_DOS_HEADER __ImageBase;
 
 using base::FilePath;
 
@@ -37,7 +39,8 @@ bool PathProviderWin(int key, FilePath* result) {
     case base::FILE_MODULE: {
       // the resource containing module is assumed to be the one that
       // this code lives in, whether that's a dll or exe
-      if (GetModuleFileName(CURRENT_MODULE(), system_buffer, MAX_PATH) == 0)
+      HMODULE this_module = reinterpret_cast<HMODULE>(&__ImageBase);
+      if (GetModuleFileName(this_module, system_buffer, MAX_PATH) == 0)
         return false;
       cur = FilePath(system_buffer);
       break;
@@ -70,7 +73,7 @@ bool PathProviderWin(int key, FilePath* result) {
 #if !defined(_WIN64)
       if (base::win::OSInfo::GetInstance()->wow64_status() ==
           base::win::OSInfo::WOW64_ENABLED) {
-        std::unique_ptr<base::Environment> env(base::Environment::Create());
+        scoped_ptr<base::Environment> env(base::Environment::Create());
         std::string programfiles_w6432;
         // 32-bit process running in WOW64 sets ProgramW6432 environment
         // variable. See
@@ -166,21 +169,15 @@ bool PathProviderWin(int key, FilePath* result) {
       // Windows.
       // http://stackoverflow.com/questions/76080/how-do-you-reliably-get-the-quick-
       // http://www.microsoft.com/technet/scriptcenter/resources/qanda/sept05/hey0901.mspx
-      cur = cur.Append(FILE_PATH_LITERAL("Microsoft"))
-                .Append(FILE_PATH_LITERAL("Internet Explorer"))
-                .Append(FILE_PATH_LITERAL("Quick Launch"));
+      cur = cur.AppendASCII("Microsoft")
+                .AppendASCII("Internet Explorer")
+                .AppendASCII("Quick Launch");
       break;
     case base::DIR_TASKBAR_PINS:
       if (!PathService::Get(base::DIR_USER_QUICK_LAUNCH, &cur))
         return false;
-      cur = cur.Append(FILE_PATH_LITERAL("User Pinned"))
-                .Append(FILE_PATH_LITERAL("TaskBar"));
-      break;
-    case base::DIR_IMPLICIT_APP_SHORTCUTS:
-      if (!PathService::Get(base::DIR_USER_QUICK_LAUNCH, &cur))
-        return false;
-      cur = cur.Append(FILE_PATH_LITERAL("User Pinned"))
-                .Append(FILE_PATH_LITERAL("ImplicitAppShortcuts"));
+      cur = cur.AppendASCII("User Pinned");
+      cur = cur.AppendASCII("TaskBar");
       break;
     case base::DIR_WINDOWS_FONTS:
       if (FAILED(SHGetFolderPath(

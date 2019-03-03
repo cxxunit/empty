@@ -7,7 +7,6 @@
 #include "base/macros.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/message_loop/message_loop.h"
-#include "base/run_loop.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -75,9 +74,9 @@ class TestMemoryPressureMonitor : public MemoryPressureMonitor {
 // for the correct behavior on event reposting as well as state updates.
 TEST(ChromeOSMemoryPressureMonitorTest, CheckMemoryPressure) {
   base::MessageLoopForUI message_loop;
-  std::unique_ptr<TestMemoryPressureMonitor> monitor(
+  scoped_ptr<TestMemoryPressureMonitor> monitor(
       new TestMemoryPressureMonitor);
-  std::unique_ptr<MemoryPressureListener> listener(
+  scoped_ptr<MemoryPressureListener> listener(
       new MemoryPressureListener(base::Bind(&OnMemoryPressure)));
   // Checking the memory pressure while 0% are used should not produce any
   // events.
@@ -85,7 +84,7 @@ TEST(ChromeOSMemoryPressureMonitorTest, CheckMemoryPressure) {
   ResetOnMemoryPressureCalled();
 
   monitor->CheckMemoryPressureForTest();
-  RunLoop().RunUntilIdle();
+  message_loop.RunUntilIdle();
   EXPECT_FALSE(WasOnMemoryPressureCalled());
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE,
             monitor->GetCurrentPressureLevel());
@@ -93,7 +92,7 @@ TEST(ChromeOSMemoryPressureMonitorTest, CheckMemoryPressure) {
   // Setting the memory level to 80% should produce a moderate pressure level.
   monitor->SetMemoryInPercentOverride(80);
   monitor->CheckMemoryPressureForTest();
-  RunLoop().RunUntilIdle();
+  message_loop.RunUntilIdle();
   EXPECT_TRUE(WasOnMemoryPressureCalled());
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
             monitor->GetCurrentPressureLevel());
@@ -104,7 +103,7 @@ TEST(ChromeOSMemoryPressureMonitorTest, CheckMemoryPressure) {
   int i = 0;
   for (; i < 100; i++) {
     monitor->CheckMemoryPressureForTest();
-    RunLoop().RunUntilIdle();
+    message_loop.RunUntilIdle();
     EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
               monitor->GetCurrentPressureLevel());
     if (WasOnMemoryPressureCalled()) {
@@ -113,14 +112,14 @@ TEST(ChromeOSMemoryPressureMonitorTest, CheckMemoryPressure) {
       break;
     }
   }
-  // Should be more than 5 and less than 100.
+  // Should be more then 5 and less then 100.
   EXPECT_LE(5, i);
   EXPECT_GE(99, i);
 
   // Setting the memory usage to 99% should produce critical levels.
   monitor->SetMemoryInPercentOverride(99);
   monitor->CheckMemoryPressureForTest();
-  RunLoop().RunUntilIdle();
+  message_loop.RunUntilIdle();
   EXPECT_TRUE(WasOnMemoryPressureCalled());
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
             on_memory_pressure_level);
@@ -129,7 +128,7 @@ TEST(ChromeOSMemoryPressureMonitorTest, CheckMemoryPressure) {
 
   // Calling it again should immediately produce a second call.
   monitor->CheckMemoryPressureForTest();
-  RunLoop().RunUntilIdle();
+  message_loop.RunUntilIdle();
   EXPECT_TRUE(WasOnMemoryPressureCalled());
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
             on_memory_pressure_level);
@@ -140,7 +139,7 @@ TEST(ChromeOSMemoryPressureMonitorTest, CheckMemoryPressure) {
   // pressure should go back to moderate.
   monitor->SetMemoryInPercentOverride(80);
   monitor->CheckMemoryPressureForTest();
-  RunLoop().RunUntilIdle();
+  message_loop.RunUntilIdle();
   EXPECT_FALSE(WasOnMemoryPressureCalled());
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
             monitor->GetCurrentPressureLevel());
@@ -150,7 +149,7 @@ TEST(ChromeOSMemoryPressureMonitorTest, CheckMemoryPressure) {
   int j = 0;
   for (; j < 100; j++) {
     monitor->CheckMemoryPressureForTest();
-    RunLoop().RunUntilIdle();
+    message_loop.RunUntilIdle();
     EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
               monitor->GetCurrentPressureLevel());
     if (WasOnMemoryPressureCalled()) {

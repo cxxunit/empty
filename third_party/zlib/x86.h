@@ -6,8 +6,6 @@
 #ifndef X86_H
 #define X86_H
 
-#include "zlib.h"
-
 extern int x86_cpu_enable_simd;
 
 void x86_check_features(void);

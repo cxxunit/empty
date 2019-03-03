@@ -16,7 +16,12 @@ DiscardableMemoryAllocator* g_allocator = nullptr;
 // static
 void DiscardableMemoryAllocator::SetInstance(
     DiscardableMemoryAllocator* allocator) {
-  DCHECK(!allocator || !g_allocator);
+  DCHECK(allocator);
+
+  // Make sure this function is only called once before the first call
+  // to GetInstance().
+  DCHECK(!g_allocator);
+
   g_allocator = allocator;
 }
 

@@ -10,7 +10,6 @@ import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.os.Parcelable;
 
-import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.annotations.AccessedByNative;
 
@@ -195,7 +194,7 @@ public abstract class Linker {
     protected final Object mLock = new Object();
 
     // The name of a class that implements TestRunner.
-    private String mTestRunnerClassName;
+    private String mTestRunnerClassName = null;
 
     // Size of reserved Breakpad guard region. Should match the value of
     // kBreakpadGuardRegionBytes on the JNI side. Used when computing the load
@@ -216,7 +215,7 @@ public abstract class Linker {
     public static final int LINKER_IMPLEMENTATION_MODERN = 2;
 
     // Singleton.
-    private static Linker sSingleton;
+    private static Linker sSingleton = null;
     private static Object sSingletonLock = new Object();
 
     // Protected singleton constructor.
@@ -240,13 +239,7 @@ public abstract class Linker {
     public static final Linker getInstance() {
         synchronized (sSingletonLock) {
             if (sSingleton == null) {
-                // With incremental install, it's important to fall back to the "normal"
-                // library loading path in order for the libraries to be found.
-                String appClass =
-                        ContextUtils.getApplicationContext().getApplicationInfo().className;
-                boolean isIncrementalInstall =
-                        appClass != null && appClass.contains("incrementalinstall");
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isIncrementalInstall) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     sSingleton = ModernLinker.create();
                 } else {
                     sSingleton = LegacyLinker.create();
@@ -503,24 +496,32 @@ public abstract class Linker {
     }
 
     /**
-     * Determine whether a library is the linker library.
+     * Determine whether a library is the linker library. Also deal with the
+     * component build that adds a .cr suffix to the name.
      *
      * @param library the name of the library.
      * @return true is the library is the Linker's own JNI library.
      */
     public boolean isChromiumLinkerLibrary(String library) {
-        return library.equals(LINKER_JNI_LIBRARY);
+        return library.equals(LINKER_JNI_LIBRARY) || library.equals(LINKER_JNI_LIBRARY + ".cr");
     }
 
     /**
      * Load the Linker JNI library. Throws UnsatisfiedLinkError on error.
+     * In a component build, the suffix ".cr" is added to each library name, so
+     * if the initial load fails we retry with a suffix.
      */
     protected static void loadLinkerJniLibrary() {
         String libName = "lib" + LINKER_JNI_LIBRARY + ".so";
         if (DEBUG) {
             Log.i(TAG, "Loading " + libName);
         }
-        System.loadLibrary(LINKER_JNI_LIBRARY);
+        try {
+            System.loadLibrary(LINKER_JNI_LIBRARY);
+        } catch (UnsatisfiedLinkError e) {
+            Log.w(TAG, "Couldn't load " + libName + ", trying " + libName + ".cr");
+            System.loadLibrary(LINKER_JNI_LIBRARY + ".cr");
+        }
     }
 
     /**

@@ -8,16 +8,12 @@
 #include <io.h>
 #include <stdint.h>
 
-#include <algorithm>
-#include <utility>
-
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/macros.h"
-#include "base/process/memory.h"
+#include "base/message_loop/message_loop.h"
 #include "base/process/process_iterator.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/win/object_watcher.h"
 
 namespace base {
@@ -48,7 +44,7 @@ class TimerExpiredTask : public win::ObjectWatcher::Delegate {
 
   void TimedOut();
 
-  // win::ObjectWatcher::Delegate implementation.
+  // MessageLoop::Watcher -----------------------------------------------------
   void OnObjectSignaled(HANDLE object) override;
 
  private:
@@ -62,8 +58,7 @@ class TimerExpiredTask : public win::ObjectWatcher::Delegate {
   DISALLOW_COPY_AND_ASSIGN(TimerExpiredTask);
 };
 
-TimerExpiredTask::TimerExpiredTask(Process process)
-    : process_(std::move(process)) {
+TimerExpiredTask::TimerExpiredTask(Process process) : process_(process.Pass()) {
   watcher_.StartWatchingOnce(process_.Handle(), this);
 }
 
@@ -148,11 +143,6 @@ TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
     case kDebuggerTerminatedExitCode:  // Debugger terminated process.
     case kProcessKilledExitCode:  // Task manager kill.
       return TERMINATION_STATUS_PROCESS_WAS_KILLED;
-    case base::win::kSandboxFatalMemoryExceeded:  // Terminated process due to
-                                                  // exceeding the sandbox job
-                                                  // object memory limits.
-    case base::win::kOomExceptionCode:  // Ran out of memory.
-      return TERMINATION_STATUS_OOM;
     default:
       // All other exit codes indicate crashes.
       return TERMINATION_STATUS_PROCESS_CRASHED;
@@ -200,9 +190,10 @@ void EnsureProcessTerminated(Process process) {
     return;
   }
 
-  ThreadTaskRunnerHandle::Get()->PostDelayedTask(
-      FROM_HERE, Bind(&TimerExpiredTask::TimedOut,
-                      Owned(new TimerExpiredTask(std::move(process)))),
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      Bind(&TimerExpiredTask::TimedOut,
+           Owned(new TimerExpiredTask(process.Pass()))),
       TimeDelta::FromMilliseconds(kWaitInterval));
 }
 

@@ -35,8 +35,7 @@ const int kNumRuns = 100000;
 class ThreadPerfTest : public testing::Test {
  public:
   ThreadPerfTest()
-      : done_(WaitableEvent::ResetPolicy::AUTOMATIC,
-              WaitableEvent::InitialState::NOT_SIGNALED) {
+      : done_(false, false) {
     // Disable the task profiler as it adds significant cost!
     CommandLine::Init(0, NULL);
     CommandLine::ForCurrentProcess()->AppendSwitchASCII(
@@ -60,8 +59,7 @@ class ThreadPerfTest : public testing::Test {
   }
 
   base::ThreadTicks ThreadNow(base::Thread* thread) {
-    base::WaitableEvent done(WaitableEvent::ResetPolicy::AUTOMATIC,
-                             WaitableEvent::InitialState::NOT_SIGNALED);
+    base::WaitableEvent done(false, false);
     base::ThreadTicks ticks;
     thread->task_runner()->PostTask(
         FROM_HERE, base::Bind(&ThreadPerfTest::TimeOnThread,
@@ -180,11 +178,8 @@ template <typename WaitableEventType>
 class EventPerfTest : public ThreadPerfTest {
  public:
   void Init() override {
-    for (size_t i = 0; i < threads_.size(); i++) {
-      events_.push_back(
-          new WaitableEventType(WaitableEvent::ResetPolicy::AUTOMATIC,
-                                WaitableEvent::InitialState::NOT_SIGNALED));
-    }
+    for (size_t i = 0; i < threads_.size(); i++)
+      events_.push_back(new WaitableEventType(false, false));
   }
 
   void Reset() override { events_.clear(); }
@@ -231,11 +226,10 @@ TEST_F(WaitableEventPerfTest, EventPingPong) {
 // Build a minimal event using ConditionVariable.
 class ConditionVariableEvent {
  public:
-  ConditionVariableEvent(WaitableEvent::ResetPolicy reset_policy,
-                         WaitableEvent::InitialState initial_state)
+  ConditionVariableEvent(bool manual_reset, bool initially_signaled)
       : cond_(&lock_), signaled_(false) {
-    DCHECK_EQ(WaitableEvent::ResetPolicy::AUTOMATIC, reset_policy);
-    DCHECK_EQ(WaitableEvent::InitialState::NOT_SIGNALED, initial_state);
+    DCHECK(!manual_reset);
+    DCHECK(!initially_signaled);
   }
 
   void Signal() {
@@ -271,10 +265,9 @@ TEST_F(ConditionVariablePerfTest, EventPingPong) {
 // way to force a context switch, we should use that instead.
 class PthreadEvent {
  public:
-  PthreadEvent(WaitableEvent::ResetPolicy reset_policy,
-               WaitableEvent::InitialState initial_state) {
-    DCHECK_EQ(WaitableEvent::ResetPolicy::AUTOMATIC, reset_policy);
-    DCHECK_EQ(WaitableEvent::InitialState::NOT_SIGNALED, initial_state);
+  PthreadEvent(bool manual_reset, bool initially_signaled) {
+    DCHECK(!manual_reset);
+    DCHECK(!initially_signaled);
     pthread_mutex_init(&mutex_, 0);
     pthread_cond_init(&cond_, 0);
     signaled_ = false;

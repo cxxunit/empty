@@ -51,7 +51,6 @@ struct BASE_EXPORT ShortcutProperties {
   };
 
   ShortcutProperties();
-  ShortcutProperties(const ShortcutProperties& other);
   ~ShortcutProperties();
 
   void set_target(const FilePath& target_in) {

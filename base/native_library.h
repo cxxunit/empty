@@ -11,7 +11,8 @@
 #include <string>
 
 #include "base/base_export.h"
-#include "base/strings/string_piece.h"
+#include "base/compiler_specific.h"
+#include "base/strings/string16.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -25,7 +26,7 @@ namespace base {
 class FilePath;
 
 #if defined(OS_WIN)
-using NativeLibrary = HMODULE;
+typedef HMODULE NativeLibrary;
 #elif defined(OS_MACOSX)
 enum NativeLibraryType {
   BUNDLE,
@@ -45,9 +46,9 @@ struct NativeLibraryStruct {
     void* dylib;
   };
 };
-using NativeLibrary = NativeLibraryStruct*;
+typedef NativeLibraryStruct* NativeLibrary;
 #elif defined(OS_POSIX)
-using NativeLibrary = void*;
+typedef void* NativeLibrary;
 #endif  // OS_*
 
 struct BASE_EXPORT NativeLibraryLoadError {
@@ -65,31 +66,11 @@ struct BASE_EXPORT NativeLibraryLoadError {
 #endif  // OS_WIN
 };
 
-struct BASE_EXPORT NativeLibraryOptions {
-  NativeLibraryOptions() = default;
-  NativeLibraryOptions(const NativeLibraryOptions& options) = default;
-
-  // If |true|, a loaded library is required to prefer local symbol resolution
-  // before considering global symbols. Note that this is already the default
-  // behavior on most systems. Setting this to |false| does not guarantee the
-  // inverse, i.e., it does not force a preference for global symbols over local
-  // ones.
-  bool prefer_own_symbols = false;
-};
-
 // Loads a native library from disk.  Release it with UnloadNativeLibrary when
 // you're done.  Returns NULL on failure.
 // If |error| is not NULL, it may be filled in on load error.
 BASE_EXPORT NativeLibrary LoadNativeLibrary(const FilePath& library_path,
                                             NativeLibraryLoadError* error);
-
-// Loads a native library from disk.  Release it with UnloadNativeLibrary when
-// you're done.  Returns NULL on failure.
-// If |error| is not NULL, it may be filled in on load error.
-BASE_EXPORT NativeLibrary LoadNativeLibraryWithOptions(
-    const FilePath& library_path,
-    const NativeLibraryOptions& options,
-    NativeLibraryLoadError* error);
 
 #if defined(OS_WIN)
 // Loads a native library from disk.  Release it with UnloadNativeLibrary when
@@ -106,14 +87,13 @@ BASE_EXPORT void UnloadNativeLibrary(NativeLibrary library);
 
 // Gets a function pointer from a native library.
 BASE_EXPORT void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
-                                                      StringPiece name);
+                                                      const char* name);
 
 // Returns the full platform specific name for a native library.
-// |name| must be ASCII.
 // For example:
 // "mylib" returns "mylib.dll" on Windows, "libmylib.so" on Linux,
-// "libmylib.dylib" on Mac.
-BASE_EXPORT std::string GetNativeLibraryName(StringPiece name);
+// "mylib.dylib" on Mac.
+BASE_EXPORT string16 GetNativeLibraryName(const string16& name);
 
 }  // namespace base
 

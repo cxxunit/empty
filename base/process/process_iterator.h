@@ -41,7 +41,6 @@ struct ProcessEntry : public PROCESSENTRY32 {
 #elif defined(OS_POSIX)
 struct BASE_EXPORT ProcessEntry {
   ProcessEntry();
-  ProcessEntry(const ProcessEntry& other);
   ~ProcessEntry();
 
   ProcessId pid() const { return pid_; }

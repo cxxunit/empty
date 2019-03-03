@@ -13,15 +13,14 @@ DeferredSequencedTaskRunner::DeferredTask::DeferredTask()
     : is_non_nestable(false) {
 }
 
-DeferredSequencedTaskRunner::DeferredTask::DeferredTask(
-    const DeferredTask& other) = default;
-
 DeferredSequencedTaskRunner::DeferredTask::~DeferredTask() {
 }
 
 DeferredSequencedTaskRunner::DeferredSequencedTaskRunner(
-    scoped_refptr<SequencedTaskRunner> target_task_runner)
-    : started_(false), target_task_runner_(std::move(target_task_runner)) {}
+    const scoped_refptr<SequencedTaskRunner>& target_task_runner)
+    : started_(false),
+      target_task_runner_(target_task_runner) {
+}
 
 DeferredSequencedTaskRunner::~DeferredSequencedTaskRunner() {
 }

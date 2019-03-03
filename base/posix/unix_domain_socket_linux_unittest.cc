@@ -52,8 +52,7 @@ TEST(UnixDomainSocketTest, SendRecvMsgAbortOnReplyFDClose) {
   message_fds.clear();
 
   // Check that the thread didn't get blocked.
-  WaitableEvent event(WaitableEvent::ResetPolicy::AUTOMATIC,
-                      WaitableEvent::InitialState::NOT_SIGNALED);
+  WaitableEvent event(false, false);
   message_thread.task_runner()->PostTask(
       FROM_HERE, Bind(&WaitableEvent::Signal, Unretained(&event)));
   ASSERT_TRUE(event.TimedWait(TimeDelta::FromMilliseconds(5000)));

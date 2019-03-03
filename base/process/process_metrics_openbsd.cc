@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/macros.h"
 #include "base/process/process_metrics.h"
 
 #include <stddef.h>
@@ -9,16 +10,11 @@
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
-#include "base/macros.h"
-#include "base/memory/ptr_util.h"
-#include "base/sys_info.h"
-
 namespace base {
 
 // static
-std::unique_ptr<ProcessMetrics> ProcessMetrics::CreateProcessMetrics(
-    ProcessHandle process) {
-  return WrapUnique(new ProcessMetrics(process));
+ProcessMetrics* ProcessMetrics::CreateProcessMetrics(ProcessHandle process) {
+  return new ProcessMetrics(process);
 }
 
 size_t ProcessMetrics::GetPagefileUsage() const {
@@ -140,9 +136,11 @@ double ProcessMetrics::GetCPUUsage() {
 
 ProcessMetrics::ProcessMetrics(ProcessHandle process)
     : process_(process),
-      processor_count_(SysInfo::NumberOfProcessors()),
       last_system_time_(0),
-      last_cpu_(0) {}
+      last_cpu_(0) {
+
+  processor_count_ = base::SysInfo::NumberOfProcessors();
+}
 
 size_t GetSystemCommitCharge() {
   int mib[] = { CTL_VM, VM_METER };

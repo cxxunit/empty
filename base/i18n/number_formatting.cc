@@ -6,12 +6,10 @@
 
 #include <stddef.h>
 
-#include <memory>
-
 #include "base/format_macros.h"
-#include "base/i18n/message_formatter.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -39,7 +37,7 @@ struct NumberFormatWrapper {
     DCHECK(U_SUCCESS(status));
   }
 
-  std::unique_ptr<icu::NumberFormat> number_format;
+  scoped_ptr<icu::NumberFormat> number_format;
 };
 
 LazyInstance<NumberFormatWrapper> g_number_format_int =
@@ -55,7 +53,7 @@ string16 FormatNumber(int64_t number) {
 
   if (!number_format) {
     // As a fallback, just return the raw number in a string.
-    return ASCIIToUTF16(StringPrintf("%" PRId64, number));
+    return UTF8ToUTF16(StringPrintf("%" PRId64, number));
   }
   icu::UnicodeString ustr;
   number_format->format(number, ustr);
@@ -69,7 +67,7 @@ string16 FormatDouble(double number, int fractional_digits) {
 
   if (!number_format) {
     // As a fallback, just return the raw number in a string.
-    return ASCIIToUTF16(StringPrintf("%f", number));
+    return UTF8ToUTF16(StringPrintf("%f", number));
   }
   number_format->setMaximumFractionDigits(fractional_digits);
   number_format->setMinimumFractionDigits(fractional_digits);
@@ -77,11 +75,6 @@ string16 FormatDouble(double number, int fractional_digits) {
   number_format->format(number, ustr);
 
   return string16(ustr.getBuffer(), static_cast<size_t>(ustr.length()));
-}
-
-string16 FormatPercent(int number) {
-  return i18n::MessageFormatter::FormatWithNumberedArgs(
-      ASCIIToUTF16("{0,number,percent}"), static_cast<double>(number) / 100.0);
 }
 
 namespace testing {

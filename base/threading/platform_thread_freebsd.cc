@@ -82,6 +82,8 @@ void PlatformThread::SetName(const std::string& name) {
 
 void InitThreading() {}
 
+void InitOnThread() {}
+
 void TerminateOnThread() {}
 
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {

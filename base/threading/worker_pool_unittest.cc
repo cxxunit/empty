@@ -26,10 +26,7 @@ namespace {
 class PostTaskAndReplyTester
     : public base::RefCountedThreadSafe<PostTaskAndReplyTester> {
  public:
-  PostTaskAndReplyTester()
-      : finished_(false),
-        test_event_(WaitableEvent::ResetPolicy::AUTOMATIC,
-                    WaitableEvent::InitialState::NOT_SIGNALED) {}
+  PostTaskAndReplyTester() : finished_(false), test_event_(false, false) {}
 
   void RunTest() {
     ASSERT_TRUE(thread_checker_.CalledOnValidThread());
@@ -72,10 +69,8 @@ class PostTaskAndReplyTester
 }  // namespace
 
 TEST_F(WorkerPoolTest, PostTask) {
-  WaitableEvent test_event(WaitableEvent::ResetPolicy::AUTOMATIC,
-                           WaitableEvent::InitialState::NOT_SIGNALED);
-  WaitableEvent long_test_event(WaitableEvent::ResetPolicy::AUTOMATIC,
-                                WaitableEvent::InitialState::NOT_SIGNALED);
+  WaitableEvent test_event(false, false);
+  WaitableEvent long_test_event(false, false);
 
   WorkerPool::PostTask(FROM_HERE,
                        base::Bind(&WaitableEvent::Signal,

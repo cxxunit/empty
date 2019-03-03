@@ -2,50 +2,67 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/callback.h"
-
-#include <memory>
-
 #include "base/bind.h"
+#include "base/callback.h"
 #include "base/callback_helpers.h"
 #include "base/callback_internal.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
-void NopInvokeFunc() {}
+namespace {
+
+struct FakeInvoker {
+  // MSVC 2013 doesn't support Type Alias of function types.
+  // Revisit this after we update it to newer version.
+  typedef void RunType(internal::BindStateBase*);
+  static void Run(internal::BindStateBase*) {
+  }
+};
+
+}  // namespace
+
+namespace internal {
 
 // White-box testpoints to inject into a Callback<> object for checking
 // comparators and emptiness APIs.  Use a BindState that is specialized
 // based on a type we declared in the anonymous namespace above to remove any
 // chance of colliding with another instantiation and breaking the
 // one-definition-rule.
-struct FakeBindState1 : internal::BindStateBase {
-  FakeBindState1() : BindStateBase(&NopInvokeFunc, &Destroy, &IsCancelled) {}
+template <>
+struct BindState<void(), void(), FakeInvoker>
+    : public BindStateBase {
+ public:
+  BindState() : BindStateBase(&Destroy) {}
+  using InvokerType = FakeInvoker;
  private:
-  ~FakeBindState1() {}
-  static void Destroy(const internal::BindStateBase* self) {
-    delete static_cast<const FakeBindState1*>(self);
-  }
-  static bool IsCancelled(const internal::BindStateBase*) {
-    return false;
+  ~BindState() {}
+  static void Destroy(BindStateBase* self) {
+    delete static_cast<BindState*>(self);
   }
 };
 
-struct FakeBindState2 : internal::BindStateBase {
-  FakeBindState2() : BindStateBase(&NopInvokeFunc, &Destroy, &IsCancelled) {}
+template <>
+struct BindState<void(), void(), FakeInvoker, FakeInvoker>
+    : public BindStateBase {
+ public:
+  BindState() : BindStateBase(&Destroy) {}
+  using InvokerType = FakeInvoker;
  private:
-  ~FakeBindState2() {}
-  static void Destroy(const internal::BindStateBase* self) {
-    delete static_cast<const FakeBindState2*>(self);
-  }
-  static bool IsCancelled(const internal::BindStateBase*) {
-    return false;
+  ~BindState() {}
+  static void Destroy(BindStateBase* self) {
+    delete static_cast<BindState*>(self);
   }
 };
+}  // namespace internal
 
 namespace {
+
+using FakeBindState1 = internal::BindState<void(), void(), FakeInvoker>;
+using FakeBindState2 =
+    internal::BindState<void(), void(), FakeInvoker, FakeInvoker>;
 
 class CallbackTest : public ::testing::Test {
  public:

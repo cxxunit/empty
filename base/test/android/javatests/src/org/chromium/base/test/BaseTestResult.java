@@ -106,8 +106,6 @@ public class BaseTestResult extends TestResult {
 
     @Override
     protected void run(TestCase test) {
-        runPreTestHooks(test);
-
         if (shouldSkip(test)) {
             startTest(test);
 
@@ -119,6 +117,8 @@ public class BaseTestResult extends TestResult {
 
             endTest(test);
         } else {
+            runPreTestHooks(test);
+
             if (test instanceof Parameterizable) {
                 try {
                     runParameterized(test);

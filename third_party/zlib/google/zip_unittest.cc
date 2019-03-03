@@ -37,7 +37,7 @@ class ZipTest : public PlatformTest {
     PlatformTest::SetUp();
 
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
-    test_dir_ = temp_dir_.GetPath();
+    test_dir_ = temp_dir_.path();
 
     base::FilePath zip_path(test_dir_);
     zip_contents_.insert(zip_path.AppendASCII("foo.txt"));
@@ -122,9 +122,9 @@ class ZipTest : public PlatformTest {
     base::ScopedTempDir temp_dir;
     ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
-    base::FilePath zip_file = temp_dir.GetPath().AppendASCII("out.zip");
-    base::FilePath src_dir = temp_dir.GetPath().AppendASCII("input");
-    base::FilePath out_dir = temp_dir.GetPath().AppendASCII("output");
+    base::FilePath zip_file = temp_dir.path().AppendASCII("out.zip");
+    base::FilePath src_dir = temp_dir.path().AppendASCII("input");
+    base::FilePath out_dir = temp_dir.path().AppendASCII("output");
 
     base::FilePath src_file = src_dir.AppendASCII("test.txt");
     base::FilePath out_file = out_dir.AppendASCII("test.txt");
@@ -142,8 +142,7 @@ class ZipTest : public PlatformTest {
     base::Time::Now().LocalExplode(&now_parts);
     now_parts.second = now_parts.second & ~1;
     now_parts.millisecond = 0;
-    base::Time now_time;
-    EXPECT_TRUE(base::Time::FromLocalExploded(now_parts, &now_time));
+    base::Time now_time = base::Time::FromLocalExploded(now_parts);
 
     EXPECT_EQ(1, base::WriteFile(src_file, "1", 1));
     EXPECT_TRUE(base::TouchFile(src_file, base::Time::Now(), test_mtime));
@@ -220,7 +219,7 @@ TEST_F(ZipTest, Zip) {
 
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  base::FilePath zip_file = temp_dir.GetPath().AppendASCII("out.zip");
+  base::FilePath zip_file = temp_dir.path().AppendASCII("out.zip");
 
   EXPECT_TRUE(zip::Zip(src_dir, zip_file, true));
   TestUnzipFile(zip_file, true);
@@ -233,7 +232,7 @@ TEST_F(ZipTest, ZipIgnoreHidden) {
 
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  base::FilePath zip_file = temp_dir.GetPath().AppendASCII("out.zip");
+  base::FilePath zip_file = temp_dir.path().AppendASCII("out.zip");
 
   EXPECT_TRUE(zip::Zip(src_dir, zip_file, false));
   TestUnzipFile(zip_file, false);
@@ -247,10 +246,11 @@ TEST_F(ZipTest, ZipNonASCIIDir) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   // Append 'Тест' (in cyrillic).
-  base::FilePath src_dir_russian = temp_dir.GetPath().Append(
-      base::FilePath::FromUTF8Unsafe("\xD0\xA2\xD0\xB5\xD1\x81\xD1\x82"));
+  base::FilePath src_dir_russian =
+      temp_dir.path().Append(base::FilePath::FromUTF8Unsafe(
+          "\xD0\xA2\xD0\xB5\xD1\x81\xD1\x82"));
   base::CopyDirectory(src_dir, src_dir_russian, true);
-  base::FilePath zip_file = temp_dir.GetPath().AppendASCII("out_russian.zip");
+  base::FilePath zip_file = temp_dir.path().AppendASCII("out_russian.zip");
 
   EXPECT_TRUE(zip::Zip(src_dir_russian, zip_file, true));
   TestUnzipFile(zip_file, true);
@@ -286,7 +286,7 @@ TEST_F(ZipTest, ZipFiles) {
 
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-  base::FilePath zip_name = temp_dir.GetPath().AppendASCII("out.zip");
+  base::FilePath zip_name = temp_dir.path().AppendASCII("out.zip");
 
   base::File zip_file(zip_name,
                       base::File::FLAG_CREATE | base::File::FLAG_WRITE);
@@ -320,7 +320,7 @@ TEST_F(ZipTest, UnzipFilesWithIncorrectSize) {
 
   base::ScopedTempDir scoped_temp_dir;
   ASSERT_TRUE(scoped_temp_dir.CreateUniqueTempDir());
-  const base::FilePath& temp_dir = scoped_temp_dir.GetPath();
+  const base::FilePath& temp_dir = scoped_temp_dir.path();
 
   ASSERT_TRUE(zip::Unzip(test_zip_file, temp_dir));
   EXPECT_TRUE(base::DirectoryExists(temp_dir.AppendASCII("d")));

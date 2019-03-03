@@ -18,10 +18,6 @@
 #include "build/build_config.h"
 
 #if !defined(OS_IOS)
-#import <AppKit/AppKit.h>
-#endif
-
-#if !defined(OS_IOS)
 extern "C" {
 CFTypeID SecACLGetTypeID();
 CFTypeID SecTrustedApplicationGetTypeID();
@@ -155,7 +151,7 @@ FilePath GetAppBundlePath(const FilePath& exec_name) {
   exec_name.GetComponents(&components);
 
   // It's an error if we don't get any components.
-  if (components.empty())
+  if (!components.size())
     return FilePath();
 
   // Don't prepend '/' to the first component.
@@ -169,7 +165,7 @@ FilePath GetAppBundlePath(const FilePath& exec_name) {
 
   // The first component may be "/" or "//", etc. Only append '/' if it doesn't
   // already end in '/'.
-  if (bundle_name.back() != '/')
+  if (bundle_name[bundle_name.length() - 1] != '/')
     bundle_name += '/';
 
   // Go through the remaining components.
@@ -320,7 +316,7 @@ NSFont* CFToNSCast(CTFontRef cf_val) {
   DCHECK(!cf_val ||
          CTFontGetTypeID() == CFGetTypeID(cf_val) ||
          (_CFIsObjC(CTFontGetTypeID(), cf_val) &&
-          [ns_val isKindOfClass:[NSFont class]]));
+          [ns_val isKindOfClass:NSClassFromString(@"NSFont")]));
   return ns_val;
 }
 
@@ -328,7 +324,7 @@ CTFontRef NSToCFCast(NSFont* ns_val) {
   CTFontRef cf_val = reinterpret_cast<CTFontRef>(ns_val);
   DCHECK(!cf_val ||
          CTFontGetTypeID() == CFGetTypeID(cf_val) ||
-         [ns_val isKindOfClass:[NSFont class]]);
+         [ns_val isKindOfClass:NSClassFromString(@"NSFont")]);
   return cf_val;
 }
 #endif
@@ -392,7 +388,7 @@ CFCast<CTFontRef>(const CFTypeRef& cf_val) {
     return NULL;
 
   id<NSObject> ns_val = reinterpret_cast<id>(const_cast<void*>(cf_val));
-  if ([ns_val isKindOfClass:[NSFont class]]) {
+  if ([ns_val isKindOfClass:NSClassFromString(@"NSFont")]) {
     return (CTFontRef)(cf_val);
   }
   return NULL;

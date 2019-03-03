@@ -104,32 +104,41 @@ namespace time_internal {
 int64_t SaturatedAdd(TimeDelta delta, int64_t value) {
   CheckedNumeric<int64_t> rv(delta.delta_);
   rv += value;
-  if (rv.IsValid())
-    return rv.ValueOrDie();
-  // Positive RHS overflows. Negative RHS underflows.
-  if (value < 0)
-    return -std::numeric_limits<int64_t>::max();
-  return std::numeric_limits<int64_t>::max();
+  return FromCheckedNumeric(rv);
 }
 
 int64_t SaturatedSub(TimeDelta delta, int64_t value) {
   CheckedNumeric<int64_t> rv(delta.delta_);
   rv -= value;
-  if (rv.IsValid())
-    return rv.ValueOrDie();
-  // Negative RHS overflows. Positive RHS underflows.
-  if (value < 0)
-    return std::numeric_limits<int64_t>::max();
-  return -std::numeric_limits<int64_t>::max();
+  return FromCheckedNumeric(rv);
+}
+
+int64_t FromCheckedNumeric(const CheckedNumeric<int64_t> value) {
+  if (value.IsValid())
+    return value.ValueUnsafe();
+
+  // We could return max/min but we don't really expose what the maximum delta
+  // is. Instead, return max/(-max), which is something that clients can reason
+  // about.
+  // TODO(rvargas) crbug.com/332611: don't use internal values.
+  int64_t limit = std::numeric_limits<int64_t>::max();
+  if (value.validity() == internal::RANGE_UNDERFLOW)
+    limit = -limit;
+  return value.ValueOrDefault(limit);
 }
 
 }  // namespace time_internal
 
 std::ostream& operator<<(std::ostream& os, TimeDelta time_delta) {
-  return os << time_delta.InSecondsF() << " s";
+  return os << time_delta.InSecondsF() << "s";
 }
 
 // Time -----------------------------------------------------------------------
+
+// static
+Time Time::Max() {
+  return Time(std::numeric_limits<int64_t>::max());
+}
 
 // static
 Time Time::FromTimeT(time_t tt) {
@@ -191,17 +200,16 @@ Time Time::FromJsTime(double ms_since_epoch) {
 }
 
 double Time::ToJsTime() const {
+  if (is_null()) {
+    // Preserve 0 so the invalid result doesn't depend on the platform.
+    return 0;
+  }
   if (is_max()) {
     // Preserve max without offset to prevent overflow.
     return std::numeric_limits<double>::infinity();
   }
   return (static_cast<double>(us_ - kTimeTToMicrosecondsOffset) /
           kMicrosecondsPerMillisecond);
-}
-
-Time Time::FromJavaTime(int64_t ms_since_epoch) {
-  return base::Time::UnixEpoch() +
-         base::TimeDelta::FromMilliseconds(ms_since_epoch);
 }
 
 int64_t Time::ToJavaTime() const {
@@ -231,12 +239,7 @@ Time Time::LocalMidnight() const {
   exploded.minute = 0;
   exploded.second = 0;
   exploded.millisecond = 0;
-  Time out_time;
-  if (FromLocalExploded(exploded, &out_time))
-    return out_time;
-  // This function must not fail.
-  NOTREACHED();
-  return Time();
+  return FromLocalExploded(exploded);
 }
 
 // static
@@ -258,14 +261,6 @@ bool Time::FromStringInternal(const char* time_string,
   result_time += kTimeTToMicrosecondsOffset;
   *parsed_time = Time(result_time);
   return true;
-}
-
-// static
-bool Time::ExplodedMostlyEquals(const Exploded& lhs, const Exploded& rhs) {
-  return lhs.year == rhs.year && lhs.month == rhs.month &&
-         lhs.day_of_month == rhs.day_of_month && lhs.hour == rhs.hour &&
-         lhs.minute == rhs.minute && lhs.second == rhs.second &&
-         lhs.millisecond == rhs.millisecond;
 }
 
 std::ostream& operator<<(std::ostream& os, Time time) {

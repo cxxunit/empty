@@ -12,8 +12,7 @@
 #include "base/files/file_path.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/sequence_checker.h"
-#include "base/sequenced_task_runner.h"
+#include "base/single_thread_task_runner.h"
 
 namespace base {
 
@@ -26,8 +25,6 @@ namespace base {
 // detect the creation and deletion of files in a watched directory, but will
 // not detect modifications to those files. See file_path_watcher_kqueue.cc for
 // details.
-//
-// Must be destroyed on the sequence that invokes Watch().
 class BASE_EXPORT FilePathWatcher {
  public:
   // Callback type for Watch(). |path| points to the file that was updated,
@@ -47,6 +44,7 @@ class BASE_EXPORT FilePathWatcher {
 
     // Stop watching. This is called from FilePathWatcher's dtor in order to
     // allow to shut down properly while the object is still alive.
+    // It can be called from any thread.
     virtual void Cancel() = 0;
 
    protected:
@@ -55,11 +53,16 @@ class BASE_EXPORT FilePathWatcher {
 
     virtual ~PlatformDelegate();
 
-    scoped_refptr<SequencedTaskRunner> task_runner() const {
+    // Stop watching. This is only called on the thread of the appropriate
+    // message loop. Since it can also be called more than once, it should
+    // check |is_cancelled()| to avoid duplicate work.
+    virtual void CancelOnMessageLoopThread() = 0;
+
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner() const {
       return task_runner_;
     }
 
-    void set_task_runner(scoped_refptr<SequencedTaskRunner> runner) {
+    void set_task_runner(scoped_refptr<base::SingleThreadTaskRunner> runner) {
       task_runner_ = std::move(runner);
     }
 
@@ -73,12 +76,12 @@ class BASE_EXPORT FilePathWatcher {
     }
 
    private:
-    scoped_refptr<SequencedTaskRunner> task_runner_;
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
     bool cancelled_;
   };
 
   FilePathWatcher();
-  ~FilePathWatcher();
+  virtual ~FilePathWatcher();
 
   // A callback that always cleans up the PlatformDelegate, either when executed
   // or when deleted without having been executed at all, as can happen during
@@ -89,12 +92,9 @@ class BASE_EXPORT FilePathWatcher {
   static bool RecursiveWatchAvailable();
 
   // Invokes |callback| whenever updates to |path| are detected. This should be
-  // called at most once. Set |recursive| to true to watch |path| and its
-  // children. The callback will be invoked on the same sequence. Returns true
-  // on success.
-  //
-  // On POSIX, this must be called from a thread that supports
-  // FileDescriptorWatcher.
+  // called at most once, and from a MessageLoop of TYPE_IO. Set |recursive| to
+  // true, to watch |path| and its children. The callback will be invoked on
+  // the same loop. Returns true on success.
   //
   // Recursive watch is not supported on all platforms and file systems.
   // Watch() will return false in the case of failure.
@@ -102,8 +102,6 @@ class BASE_EXPORT FilePathWatcher {
 
  private:
   scoped_refptr<PlatformDelegate> impl_;
-
-  SequenceChecker sequence_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(FilePathWatcher);
 };

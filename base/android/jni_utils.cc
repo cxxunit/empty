@@ -16,6 +16,10 @@ ScopedJavaLocalRef<jobject> GetClassLoader(JNIEnv* env) {
   return Java_JNIUtils_getClassLoader(env);
 }
 
+bool RegisterJNIUtils(JNIEnv* env) {
+  return RegisterNativesImpl(env);
+}
+
 }  // namespace android
 }  // namespace base
 

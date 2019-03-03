@@ -294,17 +294,13 @@ size_t SyncSocket::Peek() {
 }
 
 CancelableSyncSocket::CancelableSyncSocket()
-    : shutdown_event_(base::WaitableEvent::ResetPolicy::MANUAL,
-                      base::WaitableEvent::InitialState::NOT_SIGNALED),
-      file_operation_(base::WaitableEvent::ResetPolicy::MANUAL,
-                      base::WaitableEvent::InitialState::NOT_SIGNALED) {}
+    : shutdown_event_(true, false), file_operation_(true, false) {
+}
 
 CancelableSyncSocket::CancelableSyncSocket(Handle handle)
-    : SyncSocket(handle),
-      shutdown_event_(base::WaitableEvent::ResetPolicy::MANUAL,
-                      base::WaitableEvent::InitialState::NOT_SIGNALED),
-      file_operation_(base::WaitableEvent::ResetPolicy::MANUAL,
-                      base::WaitableEvent::InitialState::NOT_SIGNALED) {}
+    : SyncSocket(handle), shutdown_event_(true, false),
+      file_operation_(true, false) {
+}
 
 bool CancelableSyncSocket::Shutdown() {
   // This doesn't shut down the pipe immediately, but subsequent Receive or Send

@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 #include "base/logging.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/sparse_histogram.h"
 #include "base/threading/thread_restrictions.h"
 
 namespace base {
@@ -249,7 +249,7 @@ File::Error File::Unlock() {
   return FILE_OK;
 }
 
-File File::Duplicate() const {
+File File::Duplicate() {
   if (!IsValid())
     return File();
 
@@ -270,7 +270,7 @@ File File::Duplicate() const {
   File other(other_handle);
   if (async())
     other.async_ = true;
-  return other;
+  return other.Pass();
 }
 
 // Static.
@@ -396,10 +396,9 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   }
 }
 
-bool File::Flush() {
+bool File::DoFlush() {
   ThreadRestrictions::AssertIOAllowed();
   DCHECK(IsValid());
-  SCOPED_FILE_TRACE("Flush");
   return ::FlushFileBuffers(file_.Get()) != FALSE;
 }
 

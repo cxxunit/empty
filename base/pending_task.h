@@ -18,21 +18,19 @@ namespace base {
 // Contains data about a pending task. Stored in TaskQueue and DelayedTaskQueue
 // for use by classes that queue and execute tasks.
 struct BASE_EXPORT PendingTask : public TrackingInfo {
-  PendingTask(const tracked_objects::Location& posted_from, OnceClosure task);
   PendingTask(const tracked_objects::Location& posted_from,
-              OnceClosure task,
+              const Closure& task);
+  PendingTask(const tracked_objects::Location& posted_from,
+              const Closure& task,
               TimeTicks delayed_run_time,
               bool nestable);
-  PendingTask(PendingTask&& other);
   ~PendingTask();
-
-  PendingTask& operator=(PendingTask&& other);
 
   // Used to support sorting.
   bool operator<(const PendingTask& other) const;
 
   // The task to run.
-  OnceClosure task;
+  Closure task;
 
   // The site this PendingTask was posted from.
   tracked_objects::Location posted_from;
@@ -47,10 +45,15 @@ struct BASE_EXPORT PendingTask : public TrackingInfo {
   bool is_high_res;
 };
 
-using TaskQueue = std::queue<PendingTask>;
+// Wrapper around std::queue specialized for PendingTask which adds a Swap
+// helper method.
+class BASE_EXPORT TaskQueue : public std::queue<PendingTask> {
+ public:
+  void Swap(TaskQueue* queue);
+};
 
 // PendingTasks are sorted by their |delayed_run_time| property.
-using DelayedTaskQueue = std::priority_queue<base::PendingTask>;
+typedef std::priority_queue<base::PendingTask> DelayedTaskQueue;
 
 }  // namespace base
 

@@ -8,33 +8,29 @@
 
 namespace base {
 
-ScopedClosureRunner::ScopedClosureRunner() {}
+ScopedClosureRunner::ScopedClosureRunner() {
+}
 
 ScopedClosureRunner::ScopedClosureRunner(const Closure& closure)
-    : closure_(closure) {}
+    : closure_(closure) {
+}
 
 ScopedClosureRunner::~ScopedClosureRunner() {
   if (!closure_.is_null())
     closure_.Run();
 }
 
-ScopedClosureRunner::ScopedClosureRunner(ScopedClosureRunner&& other)
-    : closure_(other.Release()) {}
-
-ScopedClosureRunner& ScopedClosureRunner::operator=(
-    ScopedClosureRunner&& other) {
-  ReplaceClosure(other.Release());
-  return *this;
-}
-
-void ScopedClosureRunner::RunAndReset() {
+void ScopedClosureRunner::Reset() {
   Closure old_closure = Release();
   if (!old_closure.is_null())
     old_closure.Run();
 }
 
-void ScopedClosureRunner::ReplaceClosure(const Closure& closure) {
+void ScopedClosureRunner::Reset(const Closure& closure) {
+  Closure old_closure = Release();
   closure_ = closure;
+  if (!old_closure.is_null())
+    old_closure.Run();
 }
 
 Closure ScopedClosureRunner::Release() {

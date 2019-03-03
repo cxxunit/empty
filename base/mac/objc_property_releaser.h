@@ -9,10 +9,6 @@
 
 #include "base/base_export.h"
 
-#if defined(__has_feature) && __has_feature(objc_arc)
-#error "In ARC code properties are release automatically. Don't use this class."
-#endif
-
 namespace base {
 namespace mac {
 

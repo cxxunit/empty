@@ -24,13 +24,11 @@ class SystemMessageHandler extends Handler {
     private static final int DELAYED_SCHEDULED_WORK = 2;
 
     // Native class pointer set by the constructor of the SharedClient native class.
-    private long mMessagePumpDelegateNative;
-    private long mMessagePumpNative;
-    private long mDelayedScheduledTimeTicks;
+    private long mMessagePumpDelegateNative = 0;
+    private long mDelayedScheduledTimeTicks = 0;
 
-    protected SystemMessageHandler(long messagePumpDelegateNative, long messagePumpNative) {
+    private SystemMessageHandler(long messagePumpDelegateNative) {
         mMessagePumpDelegateNative = messagePumpDelegateNative;
-        mMessagePumpNative = messagePumpNative;
     }
 
     @Override
@@ -38,8 +36,7 @@ class SystemMessageHandler extends Handler {
         if (msg.what == DELAYED_SCHEDULED_WORK) {
             mDelayedScheduledTimeTicks = 0;
         }
-        nativeDoRunLoopOnce(
-                mMessagePumpDelegateNative, mMessagePumpNative, mDelayedScheduledTimeTicks);
+        nativeDoRunLoopOnce(mMessagePumpDelegateNative, mDelayedScheduledTimeTicks);
     }
 
     @SuppressWarnings("unused")
@@ -156,11 +153,10 @@ class SystemMessageHandler extends Handler {
     }
 
     @CalledByNative
-    private static SystemMessageHandler create(
-            long messagePumpDelegateNative, long messagePumpNative) {
-        return new SystemMessageHandler(messagePumpDelegateNative, messagePumpNative);
+    private static SystemMessageHandler create(long messagePumpDelegateNative) {
+        return new SystemMessageHandler(messagePumpDelegateNative);
     }
 
     private native void nativeDoRunLoopOnce(
-            long messagePumpDelegateNative, long messagePumpNative, long delayedScheduledTimeTicks);
+            long messagePumpDelegateNative, long delayedScheduledTimeTicks);
 }

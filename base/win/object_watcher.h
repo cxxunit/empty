@@ -10,9 +10,8 @@
 #include "base/base_export.h"
 #include "base/callback.h"
 #include "base/macros.h"
-#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/sequenced_task_runner.h"
+#include "base/message_loop/message_loop.h"
 
 namespace base {
 namespace win {
@@ -20,7 +19,7 @@ namespace win {
 // A class that provides a means to asynchronously wait for a Windows object to
 // become signaled.  It is an abstraction around RegisterWaitForSingleObject
 // that provides a notification callback, OnObjectSignaled, that runs back on
-// the origin sequence (i.e., the sequence that called StartWatching).
+// the origin thread (i.e., the thread that called StartWatching).
 //
 // This class acts like a smart pointer such that when it goes out-of-scope,
 // UnregisterWaitEx is automatically called, and any in-flight notification is
@@ -47,33 +46,30 @@ namespace win {
 // If the object is already signaled before being watched, OnObjectSignaled is
 // still called after (but not necessarily immediately after) watch is started.
 //
-// NOTE: Except for the constructor, all public methods of this class must be
-// called in sequence, in a scope where SequencedTaskRunnerHandle::IsSet().
-class BASE_EXPORT ObjectWatcher {
+class BASE_EXPORT ObjectWatcher : public MessageLoop::DestructionObserver {
  public:
   class BASE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
-    // Called from the sequence that started the watch when a signaled object is
-    // detected. To continue watching the object, StartWatching must be called
-    // again.
+    // Called from the MessageLoop when a signaled object is detected.  To
+    // continue watching the object, StartWatching must be called again.
     virtual void OnObjectSignaled(HANDLE object) = 0;
   };
 
   ObjectWatcher();
-  ~ObjectWatcher();
+  ~ObjectWatcher() override;
 
-  // When the object is signaled, the given delegate is notified on the sequence
+  // When the object is signaled, the given delegate is notified on the thread
   // where StartWatchingOnce is called. The ObjectWatcher is not responsible for
   // deleting the delegate.
-  // Returns whether watching was successfully initiated.
+  // Returns true if the watch was started.  Otherwise, false is returned.
   bool StartWatchingOnce(HANDLE object, Delegate* delegate);
 
-  // Notifies the delegate, on the sequence where this method is called, each
-  // time the object is set. By definition, the handle must be an auto-reset
-  // object. The caller must ensure that it (or any Windows system code) doesn't
-  // reset the event or else the delegate won't be called.
-  // Returns whether watching was successfully initiated.
+  // Notifies the delegate, on the thread where this method is called, each time
+  // the object is set. By definition, the handle must be an auto-reset object.
+  // The caller must ensure that it (or any Windows system code) doesn't reset
+  // the event or else the delegate won't be called.
+  // Returns true if the watch was started.  Otherwise, false is returned.
   bool StartWatchingMultipleTimes(HANDLE object, Delegate* delegate);
 
   // Stops watching.  Does nothing if the watch has already completed.  If the
@@ -99,23 +95,15 @@ class BASE_EXPORT ObjectWatcher {
 
   void Signal(Delegate* delegate);
 
-  void Reset();
+  // MessageLoop::DestructionObserver implementation:
+  void WillDestroyCurrentMessageLoop() override;
 
-  // A callback pre-bound to Signal() that is posted to the caller's task runner
-  // when the wait completes.
+  // Internal state.
   Closure callback_;
-
-  // The object being watched.
-  HANDLE object_ = nullptr;
-
-  // The wait handle returned by RegisterWaitForSingleObject.
-  HANDLE wait_object_ = nullptr;
-
-  // The task runner of the sequence on which the watch was started.
-  scoped_refptr<SequencedTaskRunner> task_runner_;
-
-  bool run_once_ = true;
-
+  HANDLE object_;             // The object being watched
+  HANDLE wait_object_;        // Returned by RegisterWaitForSingleObject
+  MessageLoop* origin_loop_;  // Used to get back to the origin thread
+  bool run_once_;
   WeakPtrFactory<ObjectWatcher> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(ObjectWatcher);

@@ -13,9 +13,8 @@
 namespace base {
 namespace allocator {
 
-// Callback types for alloc and free.
-using AllocHookFunc = void (*)(const void*, size_t);
-using FreeHookFunc = void (*)(const void*);
+typedef void (*ReleaseFreeMemoryFunction)();
+typedef bool (*GetNumericPropertyFunction)(const char* name, size_t* value);
 
 // Request that the allocator release any free memory it knows about to the
 // system.
@@ -27,23 +26,20 @@ BASE_EXPORT void ReleaseFreeMemory();
 // |name| or |value| cannot be NULL
 BASE_EXPORT bool GetNumericProperty(const char* name, size_t* value);
 
-BASE_EXPORT bool IsHeapProfilerRunning();
-
-// Register callbacks for alloc and free. Can only store one callback at a time
-// for each of alloc and free.
-BASE_EXPORT void SetHooks(AllocHookFunc alloc_hook, FreeHookFunc free_hook);
-
-// Attempts to unwind the call stack from the current location where this
-// function is being called from. Must be called from a hook function registered
-// by calling SetSingle{Alloc,Free}Hook, directly or indirectly.
+// These settings allow specifying a callback used to implement the allocator
+// extension functions.  These are optional, but if set they must only be set
+// once.  These will typically called in an allocator-specific initialization
+// routine.
 //
-// Arguments:
-//   stack:          pointer to a pre-allocated array of void*'s.
-//   max_stack_size: indicates the size of the array in |stack|.
-//
-// Returns the number of call stack frames stored in |stack|, or 0 if no call
-// stack information is available.
-BASE_EXPORT int GetCallStack(void** stack, int max_stack_size);
+// No threading promises are made.  The caller is responsible for making sure
+// these pointers are set before any other threads attempt to call the above
+// functions.
+
+BASE_EXPORT void SetReleaseFreeMemoryFunction(
+    ReleaseFreeMemoryFunction release_free_memory_function);
+
+BASE_EXPORT void SetGetNumericPropertyFunction(
+    GetNumericPropertyFunction get_numeric_property_function);
 
 }  // namespace allocator
 }  // namespace base

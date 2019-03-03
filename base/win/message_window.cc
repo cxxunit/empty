@@ -7,7 +7,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/macros.h"
-#include "base/win/current_module.h"
+#include "base/process/memory.h"
 #include "base/win/wrapped_window_proc.h"
 
 const wchar_t kMessageWindowClassName[] = L"Chrome_MessageWindow";
@@ -36,7 +36,8 @@ static LazyInstance<MessageWindow::WindowClass> g_window_class =
     LAZY_INSTANCE_INITIALIZER;
 
 MessageWindow::WindowClass::WindowClass()
-    : atom_(0), instance_(CURRENT_MODULE()) {
+    : atom_(0),
+      instance_(base::GetModuleFromAddress(&MessageWindow::WindowProc)) {
   WNDCLASSEX window_class;
   window_class.cbSize = sizeof(window_class);
   window_class.style = 0;

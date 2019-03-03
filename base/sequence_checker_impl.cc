@@ -4,55 +4,43 @@
 
 #include "base/sequence_checker_impl.h"
 
-#include "base/logging.h"
-
 namespace base {
 
-SequenceCheckerImpl::SequenceCheckerImpl() {
+SequenceCheckerImpl::SequenceCheckerImpl()
+    : sequence_token_assigned_(false) {
   AutoLock auto_lock(lock_);
   EnsureSequenceTokenAssigned();
 }
 
-SequenceCheckerImpl::~SequenceCheckerImpl() = default;
+SequenceCheckerImpl::~SequenceCheckerImpl() {}
 
-bool SequenceCheckerImpl::CalledOnValidSequence() const {
+bool SequenceCheckerImpl::CalledOnValidSequencedThread() const {
   AutoLock auto_lock(lock_);
   EnsureSequenceTokenAssigned();
 
-  if (sequence_token_.IsValid())
-    return sequence_token_ == SequenceToken::GetForCurrentThread();
+  // If this thread is not associated with a SequencedWorkerPool,
+  // SequenceChecker behaves as a ThreadChecker. See header for details.
+  if (!sequence_token_.IsValid())
+    return thread_checker_.CalledOnValidThread();
 
-  if (sequenced_worker_pool_token_.IsValid()) {
-    return sequenced_worker_pool_token_.Equals(
-        SequencedWorkerPool::GetSequenceTokenForCurrentThread());
-  }
-
-  // SequenceChecker behaves as a ThreadChecker when it is not bound to a valid
-  // sequence token.
-  return thread_checker_.CalledOnValidThread();
+  return sequence_token_.Equals(
+      SequencedWorkerPool::GetSequenceTokenForCurrentThread());
 }
 
 void SequenceCheckerImpl::DetachFromSequence() {
   AutoLock auto_lock(lock_);
-  is_assigned_ = false;
-  sequence_token_ = SequenceToken();
-  sequenced_worker_pool_token_ = SequencedWorkerPool::SequenceToken();
   thread_checker_.DetachFromThread();
+  sequence_token_assigned_ = false;
+  sequence_token_ = SequencedWorkerPool::SequenceToken();
 }
 
 void SequenceCheckerImpl::EnsureSequenceTokenAssigned() const {
   lock_.AssertAcquired();
-  if (is_assigned_)
+  if (sequence_token_assigned_)
     return;
 
-  is_assigned_ = true;
-  sequence_token_ = SequenceToken::GetForCurrentThread();
-  sequenced_worker_pool_token_ =
-      SequencedWorkerPool::GetSequenceTokenForCurrentThread();
-
-  // SequencedWorkerPool doesn't use SequenceToken and code outside of
-  // SequenceWorkerPool doesn't set a SequencedWorkerPool token.
-  DCHECK(!sequence_token_.IsValid() || !sequenced_worker_pool_token_.IsValid());
+  sequence_token_assigned_ = true;
+  sequence_token_ = SequencedWorkerPool::GetSequenceTokenForCurrentThread();
 }
 
 }  // namespace base

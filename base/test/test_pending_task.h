@@ -21,7 +21,6 @@ struct TestPendingTask {
   enum TestNestability { NESTABLE, NON_NESTABLE };
 
   TestPendingTask();
-  TestPendingTask(const TestPendingTask& other);
   TestPendingTask(const tracked_objects::Location& location,
                   const Closure& task,
                   TimeTicks post_time,
@@ -59,7 +58,7 @@ struct TestPendingTask {
   // Functions for using test pending task with tracing, useful in unit
   // testing.
   void AsValueInto(base::trace_event::TracedValue* state) const;
-  std::unique_ptr<base::trace_event::ConvertableToTraceFormat> AsValue() const;
+  scoped_refptr<base::trace_event::ConvertableToTraceFormat> AsValue() const;
   std::string ToString() const;
 };
 

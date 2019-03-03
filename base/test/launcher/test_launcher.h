@@ -14,12 +14,16 @@
 #include "base/callback_forward.h"
 #include "base/compiler_specific.h"
 #include "base/macros.h"
-#include "base/process/launch.h"
 #include "base/test/gtest_util.h"
 #include "base/test/launcher/test_result.h"
 #include "base/test/launcher/test_results_tracker.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+
+namespace testing {
+class TestCase;
+class TestInfo;
+}
 
 namespace base {
 
@@ -27,7 +31,6 @@ class CommandLine;
 struct LaunchOptions;
 class SequencedWorkerPoolOwner;
 class TestLauncher;
-class Thread;
 
 // Constants for GTest command-line flags.
 extern const char kGTestFilterFlag[];
@@ -87,17 +90,6 @@ class TestLauncher {
     ALLOW_BREAKAWAY_FROM_JOB = (1 << 1),
   };
 
-  struct LaunchOptions {
-    int flags = 0;
-#if defined(OS_WIN)
-    // These mirror values in base::LaunchOptions, see it for details.
-    HandlesToInheritVector* handles_to_inherit = nullptr;
-    bool inherit_handles = false;
-#elif defined(OS_POSIX)
-    const FileHandleMappingVector* fds_to_remap = nullptr;
-#endif
-  };
-
   // Constructor. |parallel_jobs| is the limit of simultaneous parallel test
   // jobs.
   TestLauncher(TestLauncherDelegate* launcher_delegate, size_t parallel_jobs);
@@ -110,28 +102,19 @@ class TestLauncher {
   // code, second one is child process elapsed time, third one is true if
   // the child process was terminated because of a timeout, and fourth one
   // contains output of the child (stdout and stderr together).
-  // NOTE: this callback happens on the originating thread.
-  using GTestProcessCompletedCallback =
-      Callback<void(int, const TimeDelta&, bool, const std::string&)>;
-
-  // Once the test process is started this callback is run with the handle and
-  // pid of the process. This callback is run on the thread the process is
-  // launched on and immediately after the process is launched. The caller
-  // owns the ProcessHandle.
-  using GTestProcessLaunchedCallback = Callback<void(ProcessHandle, ProcessId)>;
+  typedef Callback<void(int, const TimeDelta&, bool, const std::string&)>
+      LaunchChildGTestProcessCallback;
 
   // Launches a child process (assumed to be gtest-based binary) using
   // |command_line|. If |wrapper| is not empty, it is prepended to the final
   // command line. If the child process is still running after |timeout|, it
   // is terminated. After the child process finishes |callback| is called
   // on the same thread this method was called.
-  void LaunchChildGTestProcess(
-      const CommandLine& command_line,
-      const std::string& wrapper,
-      base::TimeDelta timeout,
-      const LaunchOptions& options,
-      const GTestProcessCompletedCallback& completed_callback,
-      const GTestProcessLaunchedCallback& launched_callback);
+  void LaunchChildGTestProcess(const CommandLine& command_line,
+                               const std::string& wrapper,
+                               base::TimeDelta timeout,
+                               int flags,
+                               const LaunchChildGTestProcessCallback& callback);
 
   // Called when a test has finished running.
   void OnTestFinished(const TestResult& result);
@@ -142,17 +125,14 @@ class TestLauncher {
   // Runs all tests in current iteration. Uses callbacks to communicate success.
   void RunTests();
 
-  void CombinePositiveTestFilters(std::vector<std::string> filter_a,
-                                  std::vector<std::string> filter_b);
-
   void RunTestIteration();
 
   // Saves test results summary as JSON if requested from command line.
-  void MaybeSaveSummaryAsJSON(const std::vector<std::string>& additional_tags);
+  void MaybeSaveSummaryAsJSON();
 
   // Called on a worker thread after a child process finishes.
   void OnLaunchTestProcessFinished(
-      const GTestProcessCompletedCallback& callback,
+      const LaunchChildGTestProcessCallback& callback,
       int exit_code,
       const TimeDelta& elapsed_time,
       bool was_timeout,
@@ -163,10 +143,6 @@ class TestLauncher {
 
   // Called by the delay timer when no output was made for a while.
   void OnOutputTimeout();
-
-  // Returns the TaskRunner to be used to launch child test processes. This
-  // TaskRunner will have TaskShutdownBehavior::BLOCK_SHUTDOWN semantics.
-  scoped_refptr<TaskRunner> GetTaskRunner();
 
   // Make sure we don't accidentally call the wrong methods e.g. on the worker
   // pool thread. With lots of callbacks used this is non-trivial.
@@ -184,7 +160,6 @@ class TestLauncher {
   int cycles_;  // Number of remaining test itreations, or -1 for infinite.
 
   // Test filters (empty means no filter).
-  bool has_at_least_one_positive_filter_;
   std::vector<std::string> positive_test_filter_;
   std::vector<std::string> negative_test_filter_;
 
@@ -231,10 +206,8 @@ class TestLauncher {
   // Number of jobs to run in parallel.
   size_t parallel_jobs_;
 
-  // Worker pool used to launch processes in parallel (|worker_thread_| is used
-  // instead if |parallel_jobs == 1|).
-  std::unique_ptr<SequencedWorkerPoolOwner> worker_pool_owner_;
-  std::unique_ptr<Thread> worker_thread_;
+  // Worker pool used to launch processes in parallel.
+  scoped_ptr<SequencedWorkerPoolOwner> worker_pool_owner_;
 
   DISALLOW_COPY_AND_ASSIGN(TestLauncher);
 };

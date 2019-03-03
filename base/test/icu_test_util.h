@@ -23,8 +23,6 @@ class ScopedRestoreICUDefaultLocale {
   DISALLOW_COPY_AND_ASSIGN(ScopedRestoreICUDefaultLocale);
 };
 
-void InitializeICUForTesting();
-
 }  // namespace test
 }  // namespace base
 

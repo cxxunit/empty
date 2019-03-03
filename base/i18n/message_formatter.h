@@ -6,12 +6,11 @@
 #define BASE_I18N_MESSAGE_FORMATTER_H_
 
 #include <stdint.h>
-
-#include <memory>
 #include <string>
 
 #include "base/i18n/base_i18n_export.h"
 #include "base/macros.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "third_party/icu/source/common/unicode/uversion.h"
@@ -47,7 +46,7 @@ class BASE_I18N_EXPORT MessageArg {
   MessageArg();
   // Tests if this argument has a value, and if so increments *count.
   bool has_value(int* count) const;
-  std::unique_ptr<icu::Formattable> formattable;
+  scoped_ptr<icu::Formattable> formattable;
   DISALLOW_COPY_AND_ASSIGN(MessageArg);
 };
 

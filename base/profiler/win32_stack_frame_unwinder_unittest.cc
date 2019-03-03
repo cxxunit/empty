@@ -4,13 +4,12 @@
 
 #include "base/profiler/win32_stack_frame_unwinder.h"
 
-#include <memory>
 #include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/macros.h"
-#include "base/memory/ptr_util.h"
+#include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -127,7 +126,7 @@ class Win32StackFrameUnwinderTest : public testing::Test {
 
   // This exists so that Win32StackFrameUnwinder's constructor can be private
   // with a single friend declaration of this test fixture.
-  std::unique_ptr<Win32StackFrameUnwinder> CreateUnwinder();
+  scoped_ptr<Win32StackFrameUnwinder> CreateUnwinder();
 
   // Weak pointer to the unwind functions used by last created unwinder.
   TestUnwindFunctions* unwind_functions_;
@@ -136,18 +135,17 @@ class Win32StackFrameUnwinderTest : public testing::Test {
   DISALLOW_COPY_AND_ASSIGN(Win32StackFrameUnwinderTest);
 };
 
-std::unique_ptr<Win32StackFrameUnwinder>
+scoped_ptr<Win32StackFrameUnwinder>
 Win32StackFrameUnwinderTest::CreateUnwinder() {
-  std::unique_ptr<TestUnwindFunctions> unwind_functions(
-      new TestUnwindFunctions);
+  scoped_ptr<TestUnwindFunctions> unwind_functions(new TestUnwindFunctions);
   unwind_functions_ = unwind_functions.get();
-  return WrapUnique(
+  return make_scoped_ptr(
       new Win32StackFrameUnwinder(std::move(unwind_functions)));
 }
 
 // Checks the case where all frames have unwind information.
 TEST_F(Win32StackFrameUnwinderTest, FramesWithUnwindInfo) {
-  std::unique_ptr<Win32StackFrameUnwinder> unwinder = CreateUnwinder();
+  scoped_ptr<Win32StackFrameUnwinder> unwinder = CreateUnwinder();
   CONTEXT context = {0};
   ScopedModuleHandle module;
 
@@ -168,7 +166,7 @@ TEST_F(Win32StackFrameUnwinderTest, FramesWithUnwindInfo) {
 
 // Checks that an instruction pointer in an unloaded module fails to unwind.
 TEST_F(Win32StackFrameUnwinderTest, UnloadedModule) {
-  std::unique_ptr<Win32StackFrameUnwinder> unwinder = CreateUnwinder();
+  scoped_ptr<Win32StackFrameUnwinder> unwinder = CreateUnwinder();
   CONTEXT context = {0};
   ScopedModuleHandle module;
 
@@ -179,7 +177,7 @@ TEST_F(Win32StackFrameUnwinderTest, UnloadedModule) {
 // Checks that the CONTEXT's stack pointer gets popped when the top frame has no
 // unwind information.
 TEST_F(Win32StackFrameUnwinderTest, FrameAtTopWithoutUnwindInfo) {
-  std::unique_ptr<Win32StackFrameUnwinder> unwinder = CreateUnwinder();
+  scoped_ptr<Win32StackFrameUnwinder> unwinder = CreateUnwinder();
   CONTEXT context = {0};
   ScopedModuleHandle module;
   DWORD64 next_ip = 0x0123456789abcdef;
@@ -208,7 +206,7 @@ TEST_F(Win32StackFrameUnwinderTest, FrameAtTopWithoutUnwindInfo) {
 TEST_F(Win32StackFrameUnwinderTest, FrameBelowTopWithoutUnwindInfo) {
   {
     // First stack, with a bad function below the top of the stack.
-    std::unique_ptr<Win32StackFrameUnwinder> unwinder = CreateUnwinder();
+    scoped_ptr<Win32StackFrameUnwinder> unwinder = CreateUnwinder();
     CONTEXT context = {0};
     ScopedModuleHandle module;
     unwind_functions_->SetHasRuntimeFunction(&context);

@@ -13,7 +13,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_tracing.h"
 #include "base/files/scoped_file.h"
-#include "base/macros.h"
+#include "base/move.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 
@@ -29,13 +29,10 @@
 namespace base {
 
 #if defined(OS_WIN)
-using PlatformFile = HANDLE;
-
-const PlatformFile kInvalidPlatformFile = INVALID_HANDLE_VALUE;
+typedef HANDLE PlatformFile;
 #elif defined(OS_POSIX)
-using PlatformFile = int;
+typedef int PlatformFile;
 
-const PlatformFile kInvalidPlatformFile = -1;
 #if defined(OS_BSD) || defined(OS_MACOSX) || defined(OS_NACL)
 typedef struct stat stat_wrapper_t;
 #else
@@ -54,6 +51,8 @@ typedef struct stat64 stat_wrapper_t;
 // to the OS is not considered const, even if there is no apparent change to
 // member variables.
 class BASE_EXPORT File {
+  MOVE_ONLY_TYPE_FOR_CPP_03(File)
+
  public:
   // FLAG_(OPEN|CREATE).* are mutually exclusive. You should specify exactly one
   // of the five (possibly combining with other flags) when opening or creating
@@ -252,16 +251,6 @@ class BASE_EXPORT File {
 
   // Instructs the filesystem to flush the file to disk. (POSIX: fsync, Windows:
   // FlushFileBuffers).
-  // Calling Flush() does not guarantee file integrity and thus is not a valid
-  // substitute for file integrity checks and recovery codepaths for malformed
-  // files. It can also be *really* slow, so avoid blocking on Flush(),
-  // especially please don't block shutdown on Flush().
-  // Latency percentiles of Flush() across all platforms as of July 2016:
-  // 50 %     > 5 ms
-  // 10 %     > 58 ms
-  //  1 %     > 357 ms
-  //  0.1 %   > 1.8 seconds
-  //  0.01 %  > 7.6 seconds
   bool Flush();
 
   // Updates the file times.
@@ -300,7 +289,7 @@ class BASE_EXPORT File {
   // object that was created or initialized with this flag will have unlinked
   // the underlying file when it was created or opened. On Windows, the
   // underlying file is deleted when the last handle to it is closed.
-  File Duplicate() const;
+  File Duplicate();
 
   bool async() const { return async_; }
 
@@ -320,6 +309,10 @@ class BASE_EXPORT File {
   // traversal ('..') components.
   void DoInitialize(const FilePath& path, uint32_t flags);
 
+  // TODO(tnagel): Reintegrate into Flush() once histogram isn't needed anymore,
+  // cf. issue 473337.
+  bool DoFlush();
+
   void SetPlatformFile(PlatformFile file);
 
 #if defined(OS_WIN)
@@ -338,8 +331,6 @@ class BASE_EXPORT File {
   Error error_details_;
   bool created_;
   bool async_;
-
-  DISALLOW_COPY_AND_ASSIGN(File);
 };
 
 }  // namespace base

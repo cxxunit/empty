@@ -15,6 +15,10 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 
+namespace tracked_objects {
+class Location;
+};
+
 namespace base {
 
 class TaskRunner;
@@ -89,10 +93,6 @@ class BASE_EXPORT FileProxy : public SupportsWeakPtr<FileProxy> {
   void SetFile(File file);
 
   File TakeFile();
-
-  // Returns a new File object that is a duplicate of the underlying |file_|.
-  // See the comment at File::Duplicate for caveats.
-  File DuplicateFile();
 
   PlatformFile GetPlatformFile() const;
 

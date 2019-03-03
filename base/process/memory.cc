@@ -9,9 +9,6 @@
 
 namespace base {
 
-// Defined in memory_win.cc for Windows.
-#if !defined(OS_WIN)
-
 namespace {
 
 // Breakpad server classifies base::`anonymous namespace'::OnNoMemory as
@@ -27,8 +24,6 @@ NOINLINE void OnNoMemory(size_t size) {
 void TerminateBecauseOutOfMemory(size_t size) {
   OnNoMemory(size);
 }
-
-#endif
 
 // Defined in memory_mac.mm for Mac.
 #if !defined(OS_MACOSX)

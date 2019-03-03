@@ -6,7 +6,6 @@
 #include "base/ios/weak_nsobject.h"
 #include "base/mac/scoped_nsobject.h"
 #include "base/message_loop/message_loop.h"
-#include "base/run_loop.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -130,7 +129,7 @@ TEST(WeakNSObjectTest, WeakNSObjectCopyOnOtherThread) {
   other_thread.task_runner()->PostTask(
       FROM_HERE, Bind(&CopyWeakNSObjectAndPost, weak, runner));
   other_thread.Stop();
-  RunLoop().RunUntilIdle();
+  loop.RunUntilIdle();
 
   // Check that TouchWeakData was called and the object touched twice.
   EXPECT_EQ(2u, [data length]);

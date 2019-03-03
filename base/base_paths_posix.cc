@@ -6,19 +6,18 @@
 // don't have their own base_paths_OS.cc implementation (i.e. all but Mac and
 // Android).
 
-#include "base/base_paths.h"
-
 #include <limits.h>
 #include <stddef.h>
 
-#include <memory>
 #include <ostream>
 #include <string>
 
+#include "base/base_paths.h"
 #include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/nix/xdg_util.h"
 #include "base/path_service.h"
 #include "base/process/process_metrics.h"
@@ -36,8 +35,8 @@ namespace base {
 bool PathProviderPosix(int key, FilePath* result) {
   FilePath path;
   switch (key) {
-    case FILE_EXE:
-    case FILE_MODULE: {  // TODO(evanm): is this correct?
+    case base::FILE_EXE:
+    case base::FILE_MODULE: {  // TODO(evanm): is this correct?
 #if defined(OS_LINUX)
       FilePath bin_dir;
       if (!ReadSymbolicLink(FilePath(kProcSelfExe), &bin_dir)) {
@@ -77,23 +76,24 @@ bool PathProviderPosix(int key, FilePath* result) {
       return true;
 #endif
     }
-    case DIR_SOURCE_ROOT: {
+    case base::DIR_SOURCE_ROOT: {
       // Allow passing this in the environment, for more flexibility in build
       // tree configurations (sub-project builds, gyp --output_dir, etc.)
-      std::unique_ptr<Environment> env(Environment::Create());
+      scoped_ptr<base::Environment> env(base::Environment::Create());
       std::string cr_source_root;
       if (env->GetVar("CR_SOURCE_ROOT", &cr_source_root)) {
         path = FilePath(cr_source_root);
-        if (PathExists(path)) {
+        if (base::PathExists(path)) {
           *result = path;
           return true;
+        } else {
+          DLOG(WARNING) << "CR_SOURCE_ROOT is set, but it appears to not "
+                        << "point to a directory.";
         }
-        DLOG(WARNING) << "CR_SOURCE_ROOT is set, but it appears to not "
-                      << "point to a directory.";
       }
       // On POSIX, unit tests execute two levels deep from the source root.
       // For example:  out/{Debug|Release}/net_unittest
-      if (PathService::Get(DIR_EXE, &path)) {
+      if (PathService::Get(base::DIR_EXE, &path)) {
         *result = path.DirName().DirName();
         return true;
       }
@@ -102,13 +102,13 @@ bool PathProviderPosix(int key, FilePath* result) {
                   << "Try running from your chromium/src directory.";
       return false;
     }
-    case DIR_USER_DESKTOP:
-      *result = nix::GetXDGUserDirectory("DESKTOP", "Desktop");
+    case base::DIR_USER_DESKTOP:
+      *result = base::nix::GetXDGUserDirectory("DESKTOP", "Desktop");
       return true;
-    case DIR_CACHE: {
-      std::unique_ptr<Environment> env(Environment::Create());
-      FilePath cache_dir(
-          nix::GetXDGDirectory(env.get(), "XDG_CACHE_HOME", ".cache"));
+    case base::DIR_CACHE: {
+      scoped_ptr<base::Environment> env(base::Environment::Create());
+      FilePath cache_dir(base::nix::GetXDGDirectory(env.get(), "XDG_CACHE_HOME",
+                                                    ".cache"));
       *result = cache_dir;
       return true;
     }

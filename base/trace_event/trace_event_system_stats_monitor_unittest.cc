@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/macros.h"
-#include "base/run_loop.h"
 #include "base/trace_event/trace_event_impl.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,7 +36,7 @@ TEST_F(TraceSystemStatsMonitorTest, TraceEventSystemStatsMonitor) {
   EXPECT_EQ(0u, TraceLog::GetInstance()->GetObserverCountForTest());
 
   // Creating a system stats monitor adds it to the TraceLog observer list.
-  std::unique_ptr<TraceEventSystemStatsMonitor> system_stats_monitor(
+  scoped_ptr<TraceEventSystemStatsMonitor> system_stats_monitor(
       new TraceEventSystemStatsMonitor(message_loop.task_runner()));
   EXPECT_EQ(1u, TraceLog::GetInstance()->GetObserverCountForTest());
   EXPECT_TRUE(
@@ -49,12 +48,12 @@ TEST_F(TraceSystemStatsMonitorTest, TraceEventSystemStatsMonitor) {
 
   // Simulate enabling tracing.
   system_stats_monitor->StartProfiling();
-  RunLoop().RunUntilIdle();
+  message_loop.RunUntilIdle();
   EXPECT_TRUE(system_stats_monitor->IsTimerRunningForTest());
 
   // Simulate disabling tracing.
   system_stats_monitor->StopProfiling();
-  RunLoop().RunUntilIdle();
+  message_loop.RunUntilIdle();
   EXPECT_FALSE(system_stats_monitor->IsTimerRunningForTest());
 
   // Deleting the observer removes it from the TraceLog observer list.

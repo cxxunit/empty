@@ -3,9 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/environment.h"
-
-#include <memory>
-
+#include "base/memory/scoped_ptr.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -16,14 +14,14 @@ namespace base {
 
 TEST_F(EnvironmentTest, GetVar) {
   // Every setup should have non-empty PATH...
-  std::unique_ptr<Environment> env(Environment::Create());
+  scoped_ptr<Environment> env(Environment::Create());
   std::string env_value;
   EXPECT_TRUE(env->GetVar("PATH", &env_value));
   EXPECT_NE(env_value, "");
 }
 
 TEST_F(EnvironmentTest, GetVarReverse) {
-  std::unique_ptr<Environment> env(Environment::Create());
+  scoped_ptr<Environment> env(Environment::Create());
   const char kFooUpper[] = "FOO";
   const char kFooLower[] = "foo";
 
@@ -52,12 +50,12 @@ TEST_F(EnvironmentTest, GetVarReverse) {
 
 TEST_F(EnvironmentTest, HasVar) {
   // Every setup should have PATH...
-  std::unique_ptr<Environment> env(Environment::Create());
+  scoped_ptr<Environment> env(Environment::Create());
   EXPECT_TRUE(env->HasVar("PATH"));
 }
 
 TEST_F(EnvironmentTest, SetVar) {
-  std::unique_ptr<Environment> env(Environment::Create());
+  scoped_ptr<Environment> env(Environment::Create());
 
   const char kFooUpper[] = "FOO";
   const char kFooLower[] = "foo";
@@ -72,7 +70,7 @@ TEST_F(EnvironmentTest, SetVar) {
 }
 
 TEST_F(EnvironmentTest, UnSetVar) {
-  std::unique_ptr<Environment> env(Environment::Create());
+  scoped_ptr<Environment> env(Environment::Create());
 
   const char kFooUpper[] = "FOO";
   const char kFooLower[] = "foo";
@@ -130,7 +128,7 @@ TEST_F(EnvironmentTest, AlterEnvironment) {
   const char* const empty[] = { NULL };
   const char* const a2[] = { "A=2", NULL };
   EnvironmentMap changes;
-  std::unique_ptr<char* []> e;
+  scoped_ptr<char*[]> e;
 
   e = AlterEnvironment(empty, changes);
   EXPECT_TRUE(e[0] == NULL);

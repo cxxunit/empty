@@ -49,8 +49,6 @@
 // because they're flaky on the buildbot, but when you run them locally you
 // should be able to tell the difference.
 
-#include <memory>
-
 #include "base/base_export.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -63,7 +61,6 @@ namespace base {
 
 class BaseTimerTaskInternal;
 class SingleThreadTaskRunner;
-class TickClock;
 
 //-----------------------------------------------------------------------------
 // This class wraps MessageLoop::PostDelayedTask to manage delayed and repeating
@@ -74,23 +71,14 @@ class BASE_EXPORT Timer {
  public:
   // Construct a timer in repeating or one-shot mode. Start or SetTaskInfo must
   // be called later to set task info. |retain_user_task| determines whether the
-  // user_task is retained or reset when it runs or stops. If |tick_clock| is
-  // provided, it is used instead of TimeTicks::Now() to get TimeTicks when
-  // scheduling tasks.
+  // user_task is retained or reset when it runs or stops.
   Timer(bool retain_user_task, bool is_repeating);
-  Timer(bool retain_user_task, bool is_repeating, TickClock* tick_clock);
 
-  // Construct a timer with retained task info. If |tick_clock| is provided, it
-  // is used instead of TimeTicks::Now() to get TimeTicks when scheduling tasks.
+  // Construct a timer with retained task info.
   Timer(const tracked_objects::Location& posted_from,
         TimeDelta delay,
         const base::Closure& user_task,
         bool is_repeating);
-  Timer(const tracked_objects::Location& posted_from,
-        TimeDelta delay,
-        const base::Closure& user_task,
-        bool is_repeating,
-        TickClock* tick_clock);
 
   virtual ~Timer();
 
@@ -99,11 +87,6 @@ class BASE_EXPORT Timer {
 
   // Returns the current delay for this timer.
   virtual TimeDelta GetCurrentDelay() const;
-
-  // Returns an estimated time to the timer calling the user_task_ back.
-  // Note that the time may be negative if the timer has not been started,
-  // is late to call back or has done its last call back.
-  virtual TimeDelta GetTimeToCallback() const;
 
   // Set the task runner on which the task should be scheduled. This method can
   // only be called before any tasks have been scheduled. The task runner must
@@ -128,9 +111,6 @@ class BASE_EXPORT Timer {
   const TimeTicks& desired_run_time() const { return desired_run_time_; }
 
  protected:
-  // Returns the current tick count.
-  TimeTicks Now() const;
-
   // Used to initiate a new delayed task.  This has the side-effect of disabling
   // scheduled_task_ if it is non-null.
   void SetTaskInfo(const tracked_objects::Location& posted_from,
@@ -211,9 +191,6 @@ class BASE_EXPORT Timer {
   // If true, hold on to the user_task_ closure object for reuse.
   const bool retain_user_task_;
 
-  // The tick clock used to calculate the run time for scheduled tasks.
-  TickClock* const tick_clock_;
-
   // If true, user_task_ is scheduled to run sometime in the future.
   bool is_running_;
 
@@ -233,8 +210,8 @@ class BaseTimerMethodPointer : public Timer {
   using Timer::Start;
 
   enum RepeatMode { ONE_SHOT, REPEATING };
-  BaseTimerMethodPointer(RepeatMode mode, TickClock* tick_clock)
-      : Timer(mode == REPEATING, mode == REPEATING, tick_clock) {}
+  BaseTimerMethodPointer(RepeatMode mode)
+      : Timer(mode == REPEATING, mode == REPEATING) {}
 
   // Start the timer to run at the given |delay| from now. If the timer is
   // already running, it will be replaced to call a task formed from
@@ -253,18 +230,14 @@ class BaseTimerMethodPointer : public Timer {
 // A simple, one-shot timer.  See usage notes at the top of the file.
 class OneShotTimer : public BaseTimerMethodPointer {
  public:
-  OneShotTimer() : OneShotTimer(nullptr) {}
-  explicit OneShotTimer(TickClock* tick_clock)
-      : BaseTimerMethodPointer(ONE_SHOT, tick_clock) {}
+  OneShotTimer() : BaseTimerMethodPointer(ONE_SHOT) {}
 };
 
 //-----------------------------------------------------------------------------
 // A simple, repeating timer.  See usage notes at the top of the file.
 class RepeatingTimer : public BaseTimerMethodPointer {
  public:
-  RepeatingTimer() : RepeatingTimer(nullptr) {}
-  explicit RepeatingTimer(TickClock* tick_clock)
-      : BaseTimerMethodPointer(REPEATING, tick_clock) {}
+  RepeatingTimer() : BaseTimerMethodPointer(REPEATING) {}
 };
 
 //-----------------------------------------------------------------------------
@@ -285,19 +258,10 @@ class DelayTimer : protected Timer {
              TimeDelta delay,
              Receiver* receiver,
              void (Receiver::*method)())
-      : DelayTimer(posted_from, delay, receiver, method, nullptr) {}
-
-  template <class Receiver>
-  DelayTimer(const tracked_objects::Location& posted_from,
-             TimeDelta delay,
-             Receiver* receiver,
-             void (Receiver::*method)(),
-             TickClock* tick_clock)
       : Timer(posted_from,
               delay,
               base::Bind(method, base::Unretained(receiver)),
-              false,
-              tick_clock) {}
+              false) {}
 
   void Reset() override;
 };

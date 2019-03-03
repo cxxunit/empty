@@ -25,7 +25,6 @@
 namespace base {
 
 class TimeDelta;
-class TimeTicks;
 
 // A WaitableEvent can be a useful thread synchronization tool when you want to
 // allow one thread to wait for another thread to finish some work. For
@@ -44,18 +43,11 @@ class TimeTicks;
 // be better off just using an Windows event directly.
 class BASE_EXPORT WaitableEvent {
  public:
-  // Indicates whether a WaitableEvent should automatically reset the event
-  // state after a single waiting thread has been released or remain signaled
-  // until Reset() is manually invoked.
-  enum class ResetPolicy { MANUAL, AUTOMATIC };
-
-  // Indicates whether a new WaitableEvent should start in a signaled state or
-  // not.
-  enum class InitialState { SIGNALED, NOT_SIGNALED };
-
-  // Constructs a WaitableEvent with policy and initial state as detailed in
-  // the above enums.
-  WaitableEvent(ResetPolicy reset_policy, InitialState initial_state);
+  // If manual_reset is true, then to set the event state to non-signaled, a
+  // consumer must call the Reset method.  If this parameter is false, then the
+  // system automatically resets the event state to non-signaled after a single
+  // waiting thread has been released.
+  WaitableEvent(bool manual_reset, bool initially_signaled);
 
 #if defined(OS_WIN)
   // Create a WaitableEvent from an Event HANDLE which has already been
@@ -87,17 +79,12 @@ class BASE_EXPORT WaitableEvent {
   //   delete e;
   void Wait();
 
-  // Wait up until wait_delta has passed for the event to be signaled.  Returns
-  // true if the event was signaled.
+  // Wait up until max_time has passed for the event to be signaled.  Returns
+  // true if the event was signaled.  If this method returns false, then it
+  // does not necessarily mean that max_time was exceeded.
   //
   // TimedWait can synchronise its own destruction like |Wait|.
-  bool TimedWait(const TimeDelta& wait_delta);
-
-  // Wait up until end_time deadline has passed for the event to be signaled.
-  // Return true if the event was signaled.
-  //
-  // TimedWaitUntil can synchronise its own destruction like |Wait|.
-  bool TimedWaitUntil(const TimeTicks& end_time);
+  bool TimedWait(const TimeDelta& max_time);
 
 #if defined(OS_WIN)
   HANDLE handle() const { return handle_.Get(); }
@@ -163,7 +150,7 @@ class BASE_EXPORT WaitableEvent {
   struct WaitableEventKernel :
       public RefCountedThreadSafe<WaitableEventKernel> {
    public:
-    WaitableEventKernel(ResetPolicy reset_policy, InitialState initial_state);
+    WaitableEventKernel(bool manual_reset, bool initially_signaled);
 
     bool Dequeue(Waiter* waiter, void* tag);
 

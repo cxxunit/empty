@@ -22,8 +22,6 @@ TestPendingTask::TestPendingTask(
       delay(delay),
       nestability(nestability) {}
 
-TestPendingTask::TestPendingTask(const TestPendingTask& other) = default;
-
 TimeTicks TestPendingTask::GetTimeToRun() const {
   return post_time + delay;
 }
@@ -52,12 +50,12 @@ void TestPendingTask::AsValueInto(base::trace_event::TracedValue* state) const {
   state->SetInteger("delay", delay.ToInternalValue());
 }
 
-std::unique_ptr<base::trace_event::ConvertableToTraceFormat>
+scoped_refptr<base::trace_event::ConvertableToTraceFormat>
 TestPendingTask::AsValue() const {
-  std::unique_ptr<base::trace_event::TracedValue> state(
-      new base::trace_event::TracedValue());
+  scoped_refptr<base::trace_event::TracedValue> state =
+      new base::trace_event::TracedValue();
   AsValueInto(state.get());
-  return std::move(state);
+  return state;
 }
 
 std::string TestPendingTask::ToString() const {

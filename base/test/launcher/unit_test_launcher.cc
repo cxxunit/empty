@@ -26,14 +26,10 @@
 #include "base/test/test_switches.h"
 #include "base/test/test_timeouts.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
+#include "base/thread_task_runner_handle.h"
 #include "base/threading/thread_checker.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if defined(OS_POSIX)
-#include "base/files/file_descriptor_watcher_posix.h"
-#endif
 
 namespace base {
 
@@ -73,7 +69,6 @@ void PrintUsage() {
           "  --test-launcher-filter-file=PATH\n"
           "    Like --gtest_filter, but read the test filter from PATH.\n"
           "    One pattern per line; lines starting with '-' are exclusions.\n"
-          "    See also //testing/buildbot/filters/README.md file.\n"
           "\n"
           "  --test-launcher-batch-limit=N\n"
           "    Sets the limit of test batch to run in a single process to N.\n"
@@ -126,7 +121,7 @@ class DefaultUnitTestPlatformDelegate : public UnitTestPlatformDelegate {
 
     CHECK(temp_dir_.IsValid() || temp_dir_.CreateUniqueTempDir());
     FilePath temp_file;
-    CHECK(CreateTemporaryFileInDir(temp_dir_.GetPath(), &temp_file));
+    CHECK(CreateTemporaryFileInDir(temp_dir_.path(), &temp_file));
     std::string long_flags(
         std::string("--") + kGTestFilterFlag + "=" +
         JoinString(test_names, ":"));
@@ -234,9 +229,6 @@ int LaunchUnitTestsInternal(const RunTestSuiteCallback& run_test_suite,
   fflush(stdout);
 
   MessageLoopForIO message_loop;
-#if defined(OS_POSIX)
-  FileDescriptorWatcher file_descriptor_watcher(&message_loop);
-#endif
 
   DefaultUnitTestPlatformDelegate platform_delegate;
   UnitTestLauncherDelegate delegate(
@@ -532,13 +524,12 @@ void RunUnitTestsSerially(
   callback_state.launch_flags = launch_flags;
   callback_state.output_file = output_file;
 
-  TestLauncher::LaunchOptions launch_options;
-  launch_options.flags = launch_flags;
   test_launcher->LaunchChildGTestProcess(
-      cmd_line, platform_delegate->GetWrapperForChildGTestProcess(),
-      TestTimeouts::test_launcher_timeout(), launch_options,
-      Bind(&SerialGTestCallback, callback_state, new_test_names),
-      TestLauncher::GTestProcessLaunchedCallback());
+      cmd_line,
+      platform_delegate->GetWrapperForChildGTestProcess(),
+      TestTimeouts::test_launcher_timeout(),
+      launch_flags,
+      Bind(&SerialGTestCallback, callback_state, new_test_names));
 }
 
 void RunUnitTestsBatch(
@@ -574,12 +565,12 @@ void RunUnitTestsBatch(
   callback_state.launch_flags = launch_flags;
   callback_state.output_file = output_file;
 
-  TestLauncher::LaunchOptions options;
-  options.flags = launch_flags;
   test_launcher->LaunchChildGTestProcess(
-      cmd_line, platform_delegate->GetWrapperForChildGTestProcess(), timeout,
-      options, Bind(&GTestCallback, callback_state),
-      TestLauncher::GTestProcessLaunchedCallback());
+      cmd_line,
+      platform_delegate->GetWrapperForChildGTestProcess(),
+      timeout,
+      launch_flags,
+      Bind(&GTestCallback, callback_state));
 }
 
 UnitTestLauncherDelegate::UnitTestLauncherDelegate(

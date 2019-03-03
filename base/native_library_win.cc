@@ -7,7 +7,6 @@
 #include <windows.h>
 
 #include "base/files/file_util.h"
-#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
@@ -55,16 +54,16 @@ std::string NativeLibraryLoadError::ToString() const {
 }
 
 // static
-NativeLibrary LoadNativeLibraryWithOptions(const FilePath& library_path,
-                                           const NativeLibraryOptions& options,
-                                           NativeLibraryLoadError* error) {
+NativeLibrary LoadNativeLibrary(const FilePath& library_path,
+                                NativeLibraryLoadError* error) {
   return LoadNativeLibraryHelper(library_path, LoadLibraryW, error);
 }
 
 NativeLibrary LoadNativeLibraryDynamically(const FilePath& library_path) {
   typedef HMODULE (WINAPI* LoadLibraryFunction)(const wchar_t* file_name);
 
-  LoadLibraryFunction load_library = reinterpret_cast<LoadLibraryFunction>(
+  LoadLibraryFunction load_library;
+  load_library = reinterpret_cast<LoadLibraryFunction>(
       GetProcAddress(GetModuleHandle(L"kernel32.dll"), "LoadLibraryW"));
 
   return LoadNativeLibraryHelper(library_path, load_library, NULL);
@@ -77,14 +76,13 @@ void UnloadNativeLibrary(NativeLibrary library) {
 
 // static
 void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
-                                          StringPiece name) {
-  return GetProcAddress(library, name.data());
+                                          const char* name) {
+  return GetProcAddress(library, name);
 }
 
 // static
-std::string GetNativeLibraryName(StringPiece name) {
-  DCHECK(IsStringASCII(name));
-  return name.as_string() + ".dll";
+string16 GetNativeLibraryName(const string16& name) {
+  return name + ASCIIToUTF16(".dll");
 }
 
 }  // namespace base

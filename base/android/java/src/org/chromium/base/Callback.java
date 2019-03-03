@@ -4,34 +4,14 @@
 
 package org.chromium.base;
 
-import org.chromium.base.annotations.CalledByNative;
-
 /**
  * A simple single-argument callback to handle the result of a computation.
  *
  * @param <T> The type of the computation's result.
  */
-public abstract class Callback<T> {
+public interface Callback<T> {
     /**
      * Invoked with the result of a computation.
      */
-    public abstract void onResult(T result);
-
-    @SuppressWarnings("unchecked")
-    @CalledByNative
-    private void onResultFromNative(Object result) {
-        onResult((T) result);
-    }
-
-    @SuppressWarnings("unchecked")
-    @CalledByNative
-    private void onResultFromNative(boolean result) {
-        onResult((T) Boolean.valueOf(result));
-    }
-
-    @SuppressWarnings("unchecked")
-    @CalledByNative
-    private void onResultFromNative(int result) {
-        onResult((T) Integer.valueOf(result));
-    }
+    public void onResult(T result);
 }

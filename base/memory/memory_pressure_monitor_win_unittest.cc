@@ -7,7 +7,6 @@
 #include "base/macros.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/message_loop/message_loop.h"
-#include "base/run_loop.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -210,7 +209,7 @@ TEST_F(WinMemoryPressureMonitorTest, CheckMemoryPressure) {
   // events.
   monitor.SetNone();
   monitor.CheckMemoryPressure();
-  RunLoop().RunUntilIdle();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE,
             monitor.GetCurrentPressureLevel());
 
@@ -220,7 +219,7 @@ TEST_F(WinMemoryPressureMonitorTest, CheckMemoryPressure) {
                                    MEMORY_PRESSURE_LEVEL_MODERATE));
   monitor.SetModerate();
   monitor.CheckMemoryPressure();
-  RunLoop().RunUntilIdle();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
             monitor.GetCurrentPressureLevel());
   testing::Mock::VerifyAndClearExpectations(&monitor);
@@ -233,7 +232,7 @@ TEST_F(WinMemoryPressureMonitorTest, CheckMemoryPressure) {
                                        MEMORY_PRESSURE_LEVEL_MODERATE));
     }
     monitor.CheckMemoryPressure();
-    RunLoop().RunUntilIdle();
+    message_loop_.RunUntilIdle();
     EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
               monitor.GetCurrentPressureLevel());
     testing::Mock::VerifyAndClearExpectations(&monitor);
@@ -245,7 +244,7 @@ TEST_F(WinMemoryPressureMonitorTest, CheckMemoryPressure) {
                                    MEMORY_PRESSURE_LEVEL_CRITICAL));
   monitor.SetCritical();
   monitor.CheckMemoryPressure();
-  RunLoop().RunUntilIdle();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
             monitor.GetCurrentPressureLevel());
   testing::Mock::VerifyAndClearExpectations(&monitor);
@@ -255,7 +254,7 @@ TEST_F(WinMemoryPressureMonitorTest, CheckMemoryPressure) {
               OnMemoryPressure(MemoryPressureListener::
                                    MEMORY_PRESSURE_LEVEL_CRITICAL));
   monitor.CheckMemoryPressure();
-  RunLoop().RunUntilIdle();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL,
             monitor.GetCurrentPressureLevel());
   testing::Mock::VerifyAndClearExpectations(&monitor);
@@ -267,7 +266,7 @@ TEST_F(WinMemoryPressureMonitorTest, CheckMemoryPressure) {
                                    MEMORY_PRESSURE_LEVEL_MODERATE));
   monitor.SetModerate();
   monitor.CheckMemoryPressure();
-  RunLoop().RunUntilIdle();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
             monitor.GetCurrentPressureLevel());
   testing::Mock::VerifyAndClearExpectations(&monitor);
@@ -280,7 +279,7 @@ TEST_F(WinMemoryPressureMonitorTest, CheckMemoryPressure) {
                                        MEMORY_PRESSURE_LEVEL_MODERATE));
     }
     monitor.CheckMemoryPressure();
-    RunLoop().RunUntilIdle();
+    message_loop_.RunUntilIdle();
     EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE,
               monitor.GetCurrentPressureLevel());
     testing::Mock::VerifyAndClearExpectations(&monitor);
@@ -289,7 +288,7 @@ TEST_F(WinMemoryPressureMonitorTest, CheckMemoryPressure) {
   // Going down to no pressure should not produce an notification.
   monitor.SetNone();
   monitor.CheckMemoryPressure();
-  RunLoop().RunUntilIdle();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE,
             monitor.GetCurrentPressureLevel());
   testing::Mock::VerifyAndClearExpectations(&monitor);

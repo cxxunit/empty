@@ -5,7 +5,7 @@
 #include "base/debug/crash_logging.h"
 
 #include <cmath>
-#include <unordered_map>
+#include <map>
 
 #include "base/debug/stack_trace.h"
 #include "base/format_macros.h"
@@ -13,17 +13,13 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 
-// Undef the macro so the preprocessor doesn't garble the constructor.
-#undef ScopedCrashKey
-
 namespace base {
 namespace debug {
 
 namespace {
 
 // Global map of crash key names to registration entries.
-typedef std::unordered_map<base::StringPiece, CrashKey, base::StringPieceHash>
-    CrashKeyMap;
+typedef std::map<base::StringPiece, CrashKey> CrashKeyMap;
 CrashKeyMap* g_crash_keys_ = NULL;
 
 // The maximum length of a single chunk.

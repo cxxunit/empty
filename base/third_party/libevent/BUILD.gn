@@ -4,7 +4,7 @@
 
 import("//build/config/nacl/config.gni")
 
-static_library("libevent") {
+source_set("libevent") {
   sources = [
     "buffer.c",
     "evbuffer.c",

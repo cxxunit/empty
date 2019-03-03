@@ -21,8 +21,7 @@ MemoryMappedFile::MemoryMappedFile() : data_(NULL), length_(0) {
 
 #if !defined(OS_NACL)
 bool MemoryMappedFile::MapFileRegionToMemory(
-    const MemoryMappedFile::Region& region,
-    Access access) {
+    const MemoryMappedFile::Region& region) {
   ThreadRestrictions::AssertIOAllowed();
 
   off_t map_start = 0;
@@ -31,7 +30,7 @@ bool MemoryMappedFile::MapFileRegionToMemory(
 
   if (region == MemoryMappedFile::Region::kWholeFile) {
     int64_t file_len = file_.GetLength();
-    if (file_len < 0) {
+    if (file_len == -1) {
       DPLOG(ERROR) << "fstat " << file_.GetPlatformFile();
       return false;
     }
@@ -66,28 +65,7 @@ bool MemoryMappedFile::MapFileRegionToMemory(
     length_ = static_cast<size_t>(region.size);
   }
 
-  int flags = 0;
-  switch (access) {
-    case READ_ONLY:
-      flags |= PROT_READ;
-      break;
-    case READ_WRITE:
-      flags |= PROT_READ | PROT_WRITE;
-      break;
-    case READ_WRITE_EXTEND:
-      // POSIX won't auto-extend the file when it is written so it must first
-      // be explicitly extended to the maximum size. Zeros will fill the new
-      // space.
-      auto file_len = file_.GetLength();
-      if (file_len < 0) {
-        DPLOG(ERROR) << "fstat " << file_.GetPlatformFile();
-        return false;
-      }
-      file_.SetLength(std::max(file_len, region.offset + region.size));
-      flags |= PROT_READ | PROT_WRITE;
-      break;
-  }
-  data_ = static_cast<uint8_t*>(mmap(NULL, map_size, flags, MAP_SHARED,
+  data_ = static_cast<uint8_t*>(mmap(NULL, map_size, PROT_READ, MAP_SHARED,
                                      file_.GetPlatformFile(), map_start));
   if (data_ == MAP_FAILED) {
     DPLOG(ERROR) << "mmap " << file_.GetPlatformFile();

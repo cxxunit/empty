@@ -21,7 +21,7 @@ struct ScopedLaunchDataTraits {
 
 }  // namespace internal
 
-// Just like std::unique_ptr<> but for launch_data_t.
+// Just like scoped_ptr<> but for launch_data_t.
 using ScopedLaunchData =
     ScopedGeneric<launch_data_t, internal::ScopedLaunchDataTraits>;
 

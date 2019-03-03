@@ -6,10 +6,9 @@
 
 #include <mach/mach.h>
 
-#include <memory>
-
 #include "base/logging.h"
 #include "base/mac/scoped_mach_port.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/test/test_timeouts.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -76,17 +75,18 @@ TEST_F(DispatchSourceMachTest, ReceiveAfterResume) {
 TEST_F(DispatchSourceMachTest, NoMessagesAfterDestruction) {
   mach_port_t port = GetPort();
 
-  std::unique_ptr<int> count(new int(0));
+  scoped_ptr<int> count(new int(0));
   int* __block count_ptr = count.get();
 
-  std::unique_ptr<DispatchSourceMach> source(new DispatchSourceMach(
-      "org.chromium.base.test.NoMessagesAfterDestruction", port, ^{
-        mach_msg_empty_rcv_t msg = {{0}};
-        msg.header.msgh_size = sizeof(msg);
-        msg.header.msgh_local_port = port;
-        mach_msg_receive(&msg.header);
-        LOG(INFO) << "Receieve " << *count_ptr;
-        ++(*count_ptr);
+  scoped_ptr<DispatchSourceMach> source(new DispatchSourceMach(
+      "org.chromium.base.test.NoMessagesAfterDestruction",
+      port, ^{
+          mach_msg_empty_rcv_t msg = {{0}};
+          msg.header.msgh_size = sizeof(msg);
+          msg.header.msgh_local_port = port;
+          mach_msg_receive(&msg.header);
+          LOG(INFO) << "Receieve " << *count_ptr;
+          ++(*count_ptr);
       }));
   source->Resume();
 
@@ -107,7 +107,7 @@ TEST_F(DispatchSourceMachTest, NoMessagesAfterDestruction) {
     // pointer the handler dereferences. The test will crash if |count_ptr|
     // is being used after "free".
     if (i == 5) {
-      std::unique_ptr<DispatchSourceMach>* source_ptr = &source;
+      scoped_ptr<DispatchSourceMach>* source_ptr = &source;
       dispatch_async(queue, ^{
           source_ptr->reset();
           count_ptr = reinterpret_cast<int*>(0xdeaddead);

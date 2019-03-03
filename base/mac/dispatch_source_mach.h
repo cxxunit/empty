@@ -8,7 +8,6 @@
 #include <dispatch/dispatch.h>
 
 #include "base/base_export.h"
-#include "base/mac/scoped_dispatch_object.h"
 #include "base/macros.h"
 
 namespace base {
@@ -41,14 +40,18 @@ class BASE_EXPORT DispatchSourceMach {
   void Resume();
 
  private:
+  // Cancels the source, after which this class will no longer receive Mach
+  // messages. Calling this more than once is a no-op.
+  void Cancel();
+
   // The dispatch queue used to service the source_.
-  ScopedDispatchObject<dispatch_queue_t> queue_;
+  dispatch_queue_t queue_;
 
   // A MACH_RECV dispatch source.
-  ScopedDispatchObject<dispatch_source_t> source_;
+  dispatch_source_t source_;
 
   // Semaphore used to wait on the |source_|'s cancellation in the destructor.
-  ScopedDispatchObject<dispatch_semaphore_t> source_canceled_;
+  dispatch_semaphore_t source_canceled_;
 
   DISALLOW_COPY_AND_ASSIGN(DispatchSourceMach);
 };

@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/md5.h"
-
 #include <string.h>
-
-#include <memory>
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
+#include "base/md5.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -68,7 +66,7 @@ TEST(MD5, MD5SumOneByteData) {
 
 TEST(MD5, MD5SumLongData) {
   const int length = 10 * 1024 * 1024 + 1;
-  std::unique_ptr<char[]> data(new char[length]);
+  scoped_ptr<char[]> data(new char[length]);
 
   for (int i = 0; i < length; ++i)
     data[i] = i & 0xFF;
@@ -110,7 +108,7 @@ TEST(MD5, ContextWithLongData) {
   MD5Init(&ctx);
 
   const int length = 10 * 1024 * 1024 + 1;
-  std::unique_ptr<char[]> data(new char[length]);
+  scoped_ptr<char[]> data(new char[length]);
 
   for (int i = 0; i < length; ++i)
     data[i] = i & 0xFF;

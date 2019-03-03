@@ -33,10 +33,7 @@ const int kIdleSecondsBeforeExit = 10 * 60;
 class WorkerPoolImpl {
  public:
   WorkerPoolImpl();
-
-  // WorkerPoolImpl is only instantiated as a leaky LazyInstance, so the
-  // destructor is never called.
-  ~WorkerPoolImpl() = delete;
+  ~WorkerPoolImpl();
 
   void PostTask(const tracked_objects::Location& from_here,
                 const base::Closure& task,
@@ -50,13 +47,17 @@ WorkerPoolImpl::WorkerPoolImpl()
     : pool_(new base::PosixDynamicThreadPool("WorkerPool",
                                              kIdleSecondsBeforeExit)) {}
 
+WorkerPoolImpl::~WorkerPoolImpl() {
+  pool_->Terminate();
+}
+
 void WorkerPoolImpl::PostTask(const tracked_objects::Location& from_here,
                               const base::Closure& task,
                               bool task_is_slow) {
   pool_->PostTask(from_here, task);
 }
 
-base::LazyInstance<WorkerPoolImpl>::Leaky g_lazy_worker_pool =
+base::LazyInstance<WorkerPoolImpl> g_lazy_worker_pool =
     LAZY_INSTANCE_INITIALIZER;
 
 class WorkerThread : public PlatformThread::Delegate {
@@ -85,11 +86,13 @@ void WorkerThread::ThreadMain() {
     PendingTask pending_task = pool_->WaitForTask();
     if (pending_task.task.is_null())
       break;
-    TRACE_TASK_EXECUTION("WorkerThread::ThreadMain::Run", pending_task);
+    TRACE_EVENT2("toplevel", "WorkerThread::ThreadMain::Run",
+        "src_file", pending_task.posted_from.file_name(),
+        "src_func", pending_task.posted_from.function_name());
 
     tracked_objects::TaskStopwatch stopwatch;
     stopwatch.Start();
-    std::move(pending_task.task).Run();
+    pending_task.task.Run();
     stopwatch.Stop();
 
     tracked_objects::ThreadData::TallyRunOnWorkerThreadIfTracking(
@@ -120,11 +123,21 @@ PosixDynamicThreadPool::PosixDynamicThreadPool(const std::string& name_prefix,
     : name_prefix_(name_prefix),
       idle_seconds_before_exit_(idle_seconds_before_exit),
       pending_tasks_available_cv_(&lock_),
-      num_idle_threads_(0) {}
+      num_idle_threads_(0),
+      terminated_(false) {}
 
 PosixDynamicThreadPool::~PosixDynamicThreadPool() {
   while (!pending_tasks_.empty())
     pending_tasks_.pop();
+}
+
+void PosixDynamicThreadPool::Terminate() {
+  {
+    AutoLock locked(lock_);
+    DCHECK(!terminated_) << "Thread pool is already terminated.";
+    terminated_ = true;
+  }
+  pending_tasks_available_cv_.Broadcast();
 }
 
 void PosixDynamicThreadPool::PostTask(
@@ -136,8 +149,11 @@ void PosixDynamicThreadPool::PostTask(
 
 void PosixDynamicThreadPool::AddTask(PendingTask* pending_task) {
   AutoLock locked(lock_);
+  DCHECK(!terminated_)
+      << "This thread pool is already terminated.  Do not post new tasks.";
 
-  pending_tasks_.push(std::move(*pending_task));
+  pending_tasks_.push(*pending_task);
+  pending_task->task.Reset();
 
   // We have enough worker threads.
   if (static_cast<size_t>(num_idle_threads_) >= pending_tasks_.size()) {
@@ -152,6 +168,9 @@ void PosixDynamicThreadPool::AddTask(PendingTask* pending_task) {
 
 PendingTask PosixDynamicThreadPool::WaitForTask() {
   AutoLock locked(lock_);
+
+  if (terminated_)
+    return PendingTask(FROM_HERE, base::Closure());
 
   if (pending_tasks_.empty()) {  // No work available, wait for work.
     num_idle_threads_++;
@@ -169,7 +188,7 @@ PendingTask PosixDynamicThreadPool::WaitForTask() {
     }
   }
 
-  PendingTask pending_task = std::move(pending_tasks_.front());
+  PendingTask pending_task = pending_tasks_.front();
   pending_tasks_.pop();
   return pending_task;
 }

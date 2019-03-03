@@ -4,9 +4,8 @@
 
 #include "base/i18n/message_formatter.h"
 
-#include <memory>
-
 #include "base/i18n/rtl.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -37,9 +36,8 @@ class MessageFormatterTest : public testing::Test {
 
 namespace {
 
-void AppendFormattedDateTime(const std::unique_ptr<icu::DateFormat>& df,
-                             const Time& now,
-                             std::string* result) {
+void AppendFormattedDateTime(const scoped_ptr<icu::DateFormat>& df,
+                             const Time& now, std::string* result) {
   icu::UnicodeString formatted;
   df->format(static_cast<UDate>(now.ToJsTime()), formatted).
       toUTF8String(*result);
@@ -121,8 +119,7 @@ TEST_F(MessageFormatterTest, PluralNumberedArgsWithDate) {
 
   base::Time now = base::Time::Now();
   using icu::DateFormat;
-  std::unique_ptr<DateFormat> df(
-      DateFormat::createDateInstance(DateFormat::FULL));
+  scoped_ptr<DateFormat> df(DateFormat::createDateInstance(DateFormat::FULL));
   std::string second_sentence = " Today is ";
   AppendFormattedDateTime(df, now, &second_sentence);
 
@@ -144,10 +141,8 @@ TEST_F(MessageFormatterTest, DateTimeAndNumber) {
       "The speed of the wind was {3,number,###.#} mph.");
 
   using icu::DateFormat;
-  std::unique_ptr<DateFormat> tf(
-      DateFormat::createTimeInstance(DateFormat::SHORT));
-  std::unique_ptr<DateFormat> df(
-      DateFormat::createDateInstance(DateFormat::MEDIUM));
+  scoped_ptr<DateFormat> tf(DateFormat::createTimeInstance(DateFormat::SHORT));
+  scoped_ptr<DateFormat> df(DateFormat::createDateInstance(DateFormat::MEDIUM));
 
   base::Time now = base::Time::Now();
   std::string expected = "At ";

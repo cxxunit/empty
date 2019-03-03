@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/test/test_reg_util_win.h"
-
-#include <memory>
-
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/test_reg_util_win.h"
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -70,7 +68,7 @@ class RegistryOverrideManagerTest : public testing::Test {
   }
 
   base::string16 fake_test_key_root_;
-  std::unique_ptr<RegistryOverrideManager> manager_;
+  scoped_ptr<RegistryOverrideManager> manager_;
 };
 
 TEST_F(RegistryOverrideManagerTest, Basic) {
@@ -101,8 +99,7 @@ TEST_F(RegistryOverrideManagerTest, Basic) {
 
 TEST_F(RegistryOverrideManagerTest, DeleteStaleKeys) {
   base::Time::Exploded kTestTimeExploded = {2013, 11, 1, 4, 0, 0, 0, 0};
-  base::Time kTestTime;
-  EXPECT_TRUE(base::Time::FromUTCExploded(kTestTimeExploded, &kTestTime));
+  base::Time kTestTime = base::Time::FromUTCExploded(kTestTimeExploded);
 
   base::string16 path_garbage = fake_test_key_root_ + L"\\Blah";
   base::string16 path_very_stale =

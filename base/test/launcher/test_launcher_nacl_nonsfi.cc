@@ -21,11 +21,6 @@
 #include "base/test/launcher/unit_test_launcher.h"
 #include "base/test/test_switches.h"
 #include "base/test/test_timeouts.h"
-#include "build/build_config.h"
-
-#if defined(OS_POSIX)
-#include "base/files/file_descriptor_watcher_posix.h"
-#endif
 
 namespace base {
 
@@ -144,9 +139,6 @@ int TestLauncherNonSfiMain(const std::string& test_binary) {
   TestTimeouts::Initialize();
 
   base::MessageLoopForIO message_loop;
-#if defined(OS_POSIX)
-  FileDescriptorWatcher file_descriptor_watcher(&message_loop);
-#endif
 
   NonSfiUnitTestPlatformDelegate platform_delegate;
   if (!platform_delegate.Init(test_binary)) {

@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/shared_memory.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
-#include <memory>
-
 #include "base/atomicops.h"
 #include "base/macros.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/memory/shared_memory.h"
 #include "base/memory/shared_memory_handle.h"
 #include "base/process/kill.h"
 #include "base/rand_util.h"
@@ -248,8 +246,8 @@ TEST(SharedMemoryTest, MultipleThreads) {
   int threadcounts[] = { 1, kNumThreads };
   for (size_t i = 0; i < arraysize(threadcounts); i++) {
     int numthreads = threadcounts[i];
-    std::unique_ptr<PlatformThreadHandle[]> thread_handles;
-    std::unique_ptr<MultipleThreadMain* []> thread_delegates;
+    scoped_ptr<PlatformThreadHandle[]> thread_handles;
+    scoped_ptr<MultipleThreadMain*[]> thread_delegates;
 
     thread_handles.reset(new PlatformThreadHandle[numthreads]);
     thread_delegates.reset(new MultipleThreadMain*[numthreads]);
@@ -281,8 +279,8 @@ TEST(SharedMemoryTest, AnonymousPrivate) {
   bool rv;
   const uint32_t kDataSize = 8192;
 
-  std::unique_ptr<SharedMemory[]> memories(new SharedMemory[count]);
-  std::unique_ptr<int* []> pointers(new int*[count]);
+  scoped_ptr<SharedMemory[]> memories(new SharedMemory[count]);
+  scoped_ptr<int*[]> pointers(new int*[count]);
   ASSERT_TRUE(memories.get());
   ASSERT_TRUE(pointers.get());
 
@@ -413,9 +411,6 @@ TEST(SharedMemoryTest, ShareToSelf) {
 
   SharedMemoryHandle shared_handle;
   ASSERT_TRUE(shmem.ShareToProcess(GetCurrentProcessHandle(), &shared_handle));
-#if defined(OS_WIN)
-  ASSERT_TRUE(shared_handle.OwnershipPassesToIPC());
-#endif
   SharedMemory shared(shared_handle, /*readonly=*/false);
 
   ASSERT_TRUE(shared.Map(contents.size()));
@@ -425,9 +420,6 @@ TEST(SharedMemoryTest, ShareToSelf) {
 
   shared_handle = SharedMemoryHandle();
   ASSERT_TRUE(shmem.ShareToProcess(GetCurrentProcessHandle(), &shared_handle));
-#if defined(OS_WIN)
-  ASSERT_TRUE(shared_handle.OwnershipPassesToIPC());
-#endif
   SharedMemory readonly(shared_handle, /*readonly=*/true);
 
   ASSERT_TRUE(readonly.Map(contents.size()));
@@ -591,8 +583,8 @@ TEST(SharedMemoryTest, UnsafeImageSection) {
   EXPECT_GT(::GetModuleFileName(nullptr, path, arraysize(path)), 0U);
 
   // Map the current executable image to save us creating a new PE file on disk.
-  base::win::ScopedHandle file_handle(::CreateFile(
-      path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr));
+  base::win::ScopedHandle file_handle(
+      ::CreateFile(path, GENERIC_READ, 0, nullptr, OPEN_EXISTING, 0, nullptr));
   EXPECT_TRUE(file_handle.IsValid());
   base::win::ScopedHandle section_handle(
       ::CreateFileMappingA(file_handle.Get(), nullptr,
@@ -604,6 +596,12 @@ TEST(SharedMemoryTest, UnsafeImageSection) {
   EXPECT_TRUE(shared_memory_open.Open(kTestSectionName, true));
   EXPECT_FALSE(shared_memory_open.Map(1));
   EXPECT_EQ(nullptr, shared_memory_open.memory());
+
+  SharedMemory shared_memory_handle_dup(
+      SharedMemoryHandle(section_handle.Get(), ::GetCurrentProcessId()), true,
+      GetCurrentProcess());
+  EXPECT_FALSE(shared_memory_handle_dup.Map(1));
+  EXPECT_EQ(nullptr, shared_memory_handle_dup.memory());
 
   SharedMemory shared_memory_handle_local(
       SharedMemoryHandle(section_handle.Take(), ::GetCurrentProcessId()), true);

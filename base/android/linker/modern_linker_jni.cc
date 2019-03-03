@@ -615,9 +615,6 @@ const JNINativeMethod kNativeMethods[] = {
      reinterpret_cast<void*>(&CreateSharedRelro)},
 };
 
-const size_t kNumNativeMethods =
-    sizeof(kNativeMethods) / sizeof(kNativeMethods[0]);
-
 }  // namespace
 
 bool ModernLinkerJNIInit(JavaVM* vm, JNIEnv* env) {
@@ -631,8 +628,9 @@ bool ModernLinkerJNIInit(JavaVM* vm, JNIEnv* env) {
     return false;
 
   LOG_INFO("Registering native methods");
-  if (env->RegisterNatives(linker_class, kNativeMethods, kNumNativeMethods) < 0)
-    return false;
+  env->RegisterNatives(linker_class,
+                       kNativeMethods,
+                       sizeof(kNativeMethods) / sizeof(kNativeMethods[0]));
 
   // Record the Java VM handle.
   s_java_vm = vm;

@@ -7,7 +7,6 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_snapshot_manager.h"
-#include "base/metrics/statistics_recorder.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/pickle.h"
 #include "base/values.h"
@@ -61,8 +60,7 @@ HistogramDeltaSerialization::~HistogramDeltaSerialization() {
 }
 
 void HistogramDeltaSerialization::PrepareAndSerializeDeltas(
-    std::vector<std::string>* serialized_deltas,
-    bool include_persistent) {
+    std::vector<std::string>* serialized_deltas) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   serialized_deltas_ = serialized_deltas;
@@ -70,7 +68,6 @@ void HistogramDeltaSerialization::PrepareAndSerializeDeltas(
   // the histograms, so that the receiving process can distinguish them from the
   // local histograms.
   histogram_snapshot_manager_.PrepareDeltas(
-      StatisticsRecorder::begin(include_persistent), StatisticsRecorder::end(),
       Histogram::kIPCSerializationSourceFlag, Histogram::kNoFlags);
   serialized_deltas_ = NULL;
 }

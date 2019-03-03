@@ -23,10 +23,8 @@ namespace win {
 // are "values", which are <name, data> pairs, with an associated data type.
 //
 // Note:
-//  * ReadValue family of functions guarantee that the out-parameter
-//    is not touched in case of failure.
-//  * Functions returning LONG indicate success as ERROR_SUCCESS or an
-//    error as a (non-zero) win32 error code.
+// ReadValue family of functions guarantee that the return arguments
+// are not touched in case of failure.
 class BASE_EXPORT RegKey {
  public:
   // Called from the MessageLoop when the key changes.
@@ -68,14 +66,14 @@ class BASE_EXPORT RegKey {
   // determined.
   DWORD GetValueCount() const;
 
-  // Determines the nth value's name.
+  // Determine the nth value's name.
   LONG GetValueNameAt(int index, std::wstring* name) const;
 
   // True while the key is valid.
   bool Valid() const { return key_ != NULL; }
 
-  // Kills a key and everything that lives below it; please be careful when
-  // using it.
+  // Kill a key and everything that live below it; please be careful when using
+  // it.
   LONG DeleteKey(const wchar_t* name);
 
   // Deletes an empty subkey.  If the subkey has subkeys or values then this
@@ -87,16 +85,16 @@ class BASE_EXPORT RegKey {
 
   // Getters:
 
-  // Reads a REG_DWORD (uint32_t) into |out_value|. If |name| is null or empty,
-  // reads the key's default value, if any.
+  // Returns an int32_t value. If |name| is NULL or empty, returns the default
+  // value, if any.
   LONG ReadValueDW(const wchar_t* name, DWORD* out_value) const;
 
-  // Reads a REG_QWORD (int64_t) into |out_value|. If |name| is null or empty,
-  // reads the key's default value, if any.
+  // Returns an int64_t value. If |name| is NULL or empty, returns the default
+  // value, if any.
   LONG ReadInt64(const wchar_t* name, int64_t* out_value) const;
 
-  // Reads a string into |out_value|. If |name| is null or empty, reads
-  // the key's default value, if any.
+  // Returns a string value. If |name| is NULL or empty, returns the default
+  // value, if any.
   LONG ReadValue(const wchar_t* name, std::wstring* out_value) const;
 
   // Reads a REG_MULTI_SZ registry field into a vector of strings. Clears
@@ -104,8 +102,8 @@ class BASE_EXPORT RegKey {
   // ERROR_CANTREAD if type is not REG_MULTI_SZ.
   LONG ReadValues(const wchar_t* name, std::vector<std::wstring>* values);
 
-  // Reads raw data into |data|. If |name| is null or empty, reads the key's
-  // default value, if any.
+  // Returns raw data. If |name| is NULL or empty, returns the default
+  // value, if any.
   LONG ReadValue(const wchar_t* name,
                  void* data,
                  DWORD* dsize,
@@ -151,7 +149,7 @@ class BASE_EXPORT RegKey {
 
   HKEY key_;  // The registry key being iterated.
   REGSAM wow64access_;
-  std::unique_ptr<Watcher> key_watcher_;
+  scoped_ptr<Watcher> key_watcher_;
 
   DISALLOW_COPY_AND_ASSIGN(RegKey);
 };
@@ -159,10 +157,10 @@ class BASE_EXPORT RegKey {
 // Iterates the entries found in a particular folder on the registry.
 class BASE_EXPORT RegistryValueIterator {
  public:
-  // Constructs a Registry Value Iterator with default WOW64 access.
+  // Construct a Registry Value Iterator with default WOW64 access.
   RegistryValueIterator(HKEY root_key, const wchar_t* folder_key);
 
-  // Constructs a Registry Key Iterator with specific WOW64 access, one of
+  // Construct a Registry Key Iterator with specific WOW64 access, one of
   // KEY_WOW64_32KEY or KEY_WOW64_64KEY, or 0.
   // Note: |wow64access| should be the same access used to open |root_key|
   // previously, or a predefined key (e.g. HKEY_LOCAL_MACHINE).
@@ -190,7 +188,7 @@ class BASE_EXPORT RegistryValueIterator {
   int Index() const { return index_; }
 
  private:
-  // Reads in the current values.
+  // Read in the current values.
   bool Read();
 
   void Initialize(HKEY root_key, const wchar_t* folder_key, REGSAM wow64access);
@@ -212,10 +210,10 @@ class BASE_EXPORT RegistryValueIterator {
 
 class BASE_EXPORT RegistryKeyIterator {
  public:
-  // Constructs a Registry Key Iterator with default WOW64 access.
+  // Construct a Registry Key Iterator with default WOW64 access.
   RegistryKeyIterator(HKEY root_key, const wchar_t* folder_key);
 
-  // Constructs a Registry Value Iterator with specific WOW64 access, one of
+  // Construct a Registry Value Iterator with specific WOW64 access, one of
   // KEY_WOW64_32KEY or KEY_WOW64_64KEY, or 0.
   // Note: |wow64access| should be the same access used to open |root_key|
   // previously, or a predefined key (e.g. HKEY_LOCAL_MACHINE).
@@ -239,7 +237,7 @@ class BASE_EXPORT RegistryKeyIterator {
   int Index() const { return index_; }
 
  private:
-  // Reads in the current values.
+  // Read in the current values.
   bool Read();
 
   void Initialize(HKEY root_key, const wchar_t* folder_key, REGSAM wow64access);

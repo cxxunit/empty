@@ -439,9 +439,6 @@ const JNINativeMethod kNativeMethods[] = {
      reinterpret_cast<void*>(&UseSharedRelro)},
 };
 
-const size_t kNumNativeMethods =
-    sizeof(kNativeMethods) / sizeof(kNativeMethods[0]);
-
 }  // namespace
 
 bool LegacyLinkerJNIInit(JavaVM* vm, JNIEnv* env) {
@@ -460,8 +457,9 @@ bool LegacyLinkerJNIInit(JavaVM* vm, JNIEnv* env) {
     return false;
 
   LOG_INFO("Registering native methods");
-  if (env->RegisterNatives(linker_class, kNativeMethods, kNumNativeMethods) < 0)
-    return false;
+  env->RegisterNatives(linker_class,
+                       kNativeMethods,
+                       sizeof(kNativeMethods) / sizeof(kNativeMethods[0]));
 
   // Resolve and save the Java side Linker callback class and method.
   LOG_INFO("Resolving callback bindings");

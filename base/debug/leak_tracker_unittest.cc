@@ -3,9 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/debug/leak_tracker.h"
-
-#include <memory>
-
+#include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -31,9 +29,9 @@ TEST(LeakTrackerTest, NotEnabled) {
   EXPECT_EQ(-1, LeakTracker<ClassB>::NumLiveInstances());
 
   // Use scoped_ptr so compiler doesn't complain about unused variables.
-  std::unique_ptr<ClassA> a1(new ClassA);
-  std::unique_ptr<ClassB> b1(new ClassB);
-  std::unique_ptr<ClassB> b2(new ClassB);
+  scoped_ptr<ClassA> a1(new ClassA);
+  scoped_ptr<ClassB> b1(new ClassB);
+  scoped_ptr<ClassB> b2(new ClassB);
 
   EXPECT_EQ(-1, LeakTracker<ClassA>::NumLiveInstances());
   EXPECT_EQ(-1, LeakTracker<ClassB>::NumLiveInstances());
@@ -54,7 +52,7 @@ TEST(LeakTrackerTest, Basic) {
     EXPECT_EQ(1, LeakTracker<ClassA>::NumLiveInstances());
     EXPECT_EQ(2, LeakTracker<ClassB>::NumLiveInstances());
 
-    std::unique_ptr<ClassA> a2(new ClassA);
+    scoped_ptr<ClassA> a2(new ClassA);
 
     EXPECT_EQ(2, LeakTracker<ClassA>::NumLiveInstances());
     EXPECT_EQ(2, LeakTracker<ClassB>::NumLiveInstances());
@@ -74,10 +72,10 @@ TEST(LeakTrackerTest, Basic) {
 TEST(LeakTrackerTest, LinkedList) {
   EXPECT_EQ(0, LeakTracker<ClassB>::NumLiveInstances());
 
-  std::unique_ptr<ClassA> a1(new ClassA);
-  std::unique_ptr<ClassA> a2(new ClassA);
-  std::unique_ptr<ClassA> a3(new ClassA);
-  std::unique_ptr<ClassA> a4(new ClassA);
+  scoped_ptr<ClassA> a1(new ClassA);
+  scoped_ptr<ClassA> a2(new ClassA);
+  scoped_ptr<ClassA> a3(new ClassA);
+  scoped_ptr<ClassA> a4(new ClassA);
 
   EXPECT_EQ(4, LeakTracker<ClassA>::NumLiveInstances());
 
@@ -90,7 +88,7 @@ TEST(LeakTrackerTest, LinkedList) {
   EXPECT_EQ(2, LeakTracker<ClassA>::NumLiveInstances());
 
   // Append to the new tail of the list (a3).
-  std::unique_ptr<ClassA> a5(new ClassA);
+  scoped_ptr<ClassA> a5(new ClassA);
   EXPECT_EQ(3, LeakTracker<ClassA>::NumLiveInstances());
 
   a2.reset();

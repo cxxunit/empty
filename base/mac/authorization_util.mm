@@ -108,10 +108,6 @@ OSStatus ExecuteWithPrivilegesAndGetPID(AuthorizationRef authorization,
     pipe_pointer = &local_pipe;
   }
 
-// AuthorizationExecuteWithPrivileges is deprecated in macOS 10.7, but no good
-// replacement exists. https://crbug.com/593133.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   // AuthorizationExecuteWithPrivileges wants |char* const*| for |arguments|,
   // but it doesn't actually modify the arguments, and that type is kind of
   // silly and callers probably aren't dealing with that.  Put the cast here
@@ -121,7 +117,6 @@ OSStatus ExecuteWithPrivilegesAndGetPID(AuthorizationRef authorization,
                                                        options,
                                                        (char* const*)arguments,
                                                        pipe_pointer);
-#pragma clang diagnostic pop
   if (status != errAuthorizationSuccess) {
     return status;
   }

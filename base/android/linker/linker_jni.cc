@@ -184,9 +184,6 @@ const JNINativeMethod kNativeMethods[] = {
      reinterpret_cast<void*>(&GetRandomBaseLoadAddress)},
 };
 
-const size_t kNumNativeMethods =
-    sizeof(kNativeMethods) / sizeof(kNativeMethods[0]);
-
 // JNI_OnLoad() initialization hook.
 bool LinkerJNIInit(JavaVM* vm, JNIEnv* env) {
   LOG_INFO("Entering");
@@ -199,8 +196,9 @@ bool LinkerJNIInit(JavaVM* vm, JNIEnv* env) {
     return false;
 
   LOG_INFO("Registering native methods");
-  if (env->RegisterNatives(linker_class, kNativeMethods, kNumNativeMethods) < 0)
-    return false;
+  env->RegisterNatives(linker_class,
+                       kNativeMethods,
+                       sizeof(kNativeMethods) / sizeof(kNativeMethods[0]));
 
   // Find LibInfo field ids.
   LOG_INFO("Caching field IDs");

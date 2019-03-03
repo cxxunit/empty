@@ -11,4 +11,8 @@ void StartTestUiThreadLooper() {
   Java_TestUiThread_loop(base::android::AttachCurrentThread());
 }
 
+bool RegisterTestUiThreadAndroid(JNIEnv* env) {
+  return RegisterNativesImpl(env);
+}
+
 }  // namespace base

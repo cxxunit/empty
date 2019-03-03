@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
 
 @Inherited
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD, ElementType.TYPE})
+@Target({ElementType.TYPE})
 public @interface MinAndroidSdkLevel {
     int value() default 0;
 }

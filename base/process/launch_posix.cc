@@ -22,7 +22,6 @@
 
 #include <iterator>
 #include <limits>
-#include <memory>
 #include <set>
 
 #include "base/command_line.h"
@@ -33,6 +32,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/process/process.h"
 #include "base/process/process_metrics.h"
@@ -60,8 +60,6 @@
 #if defined(OS_MACOSX)
 #include <crt_externs.h>
 #include <sys/event.h>
-
-#include "base/feature_list.h"
 #else
 extern char** environ;
 #endif
@@ -71,11 +69,6 @@ namespace base {
 #if !defined(OS_NACL_NONSFI)
 
 namespace {
-
-#if defined(OS_MACOSX)
-const Feature kMacLaunchProcessPosixSpawn{"MacLaunchProcessPosixSpawn",
-                                          FEATURE_ENABLED_BY_DEFAULT};
-#endif
 
 // Get the process's "environment" (i.e. the thing that setenv/getenv
 // work with).
@@ -159,12 +152,12 @@ int sys_rt_sigaction(int sig, const struct kernel_sigaction* act,
 // This function is intended to be used in between fork() and execve() and will
 // reset all signal handlers to the default.
 // The motivation for going through all of them is that sa_restorer can leak
-// from parents and help defeat ASLR on buggy kernels.  We reset it to null.
+// from parents and help defeat ASLR on buggy kernels.  We reset it to NULL.
 // See crbug.com/177956.
 void ResetChildSignalHandlersToDefaults(void) {
   for (int signum = 1; ; ++signum) {
     struct kernel_sigaction act = {0};
-    int sigaction_get_ret = sys_rt_sigaction(signum, nullptr, &act);
+    int sigaction_get_ret = sys_rt_sigaction(signum, NULL, &act);
     if (sigaction_get_ret && errno == EINVAL) {
 #if !defined(NDEBUG)
       // Linux supports 32 real-time signals from 33 to 64.
@@ -183,14 +176,14 @@ void ResetChildSignalHandlersToDefaults(void) {
     // The kernel won't allow to re-set SIGKILL or SIGSTOP.
     if (signum != SIGSTOP && signum != SIGKILL) {
       act.k_sa_handler = reinterpret_cast<void*>(SIG_DFL);
-      act.k_sa_restorer = nullptr;
-      if (sys_rt_sigaction(signum, &act, nullptr)) {
+      act.k_sa_restorer = NULL;
+      if (sys_rt_sigaction(signum, &act, NULL)) {
         RAW_LOG(FATAL, "sigaction (set) failed.");
       }
     }
 #if !defined(NDEBUG)
     // Now ask the kernel again and check that no restorer will leak.
-    if (sys_rt_sigaction(signum, nullptr, &act) || act.k_sa_restorer) {
+    if (sys_rt_sigaction(signum, NULL, &act) || act.k_sa_restorer) {
       RAW_LOG(FATAL, "Cound not fix sa_restorer.");
     }
 #endif  // !defined(NDEBUG)
@@ -209,7 +202,7 @@ struct ScopedDIRClose {
 };
 
 // Automatically closes |DIR*|s.
-typedef std::unique_ptr<DIR, ScopedDIRClose> ScopedDIR;
+typedef scoped_ptr<DIR, ScopedDIRClose> ScopedDIR;
 
 #if defined(OS_LINUX)
 static const char kFDDir[] = "/proc/self/fd";
@@ -298,15 +291,6 @@ Process LaunchProcess(const CommandLine& cmdline,
 
 Process LaunchProcess(const std::vector<std::string>& argv,
                       const LaunchOptions& options) {
-#if defined(OS_MACOSX)
-  if (FeatureList::IsEnabled(kMacLaunchProcessPosixSpawn)) {
-    // TODO(rsesek): Do this unconditionally. There is one user for each of
-    // these two options. https://crbug.com/179923.
-    if (!options.pre_exec_delegate && options.current_directory.empty())
-      return LaunchProcessPosixSpawn(argv, options);
-  }
-#endif
-
   size_t fd_shuffle_size = 0;
   if (options.fds_to_remap) {
     fd_shuffle_size = options.fds_to_remap->size();
@@ -317,14 +301,14 @@ Process LaunchProcess(const std::vector<std::string>& argv,
   fd_shuffle1.reserve(fd_shuffle_size);
   fd_shuffle2.reserve(fd_shuffle_size);
 
-  std::unique_ptr<char* []> argv_cstr(new char*[argv.size() + 1]);
+  scoped_ptr<char* []> argv_cstr(new char* [argv.size() + 1]);
   for (size_t i = 0; i < argv.size(); i++) {
     argv_cstr[i] = const_cast<char*>(argv[i].c_str());
   }
-  argv_cstr[argv.size()] = nullptr;
+  argv_cstr[argv.size()] = NULL;
 
-  std::unique_ptr<char* []> new_environ;
-  char* const empty_environ = nullptr;
+  scoped_ptr<char*[]> new_environ;
+  char* const empty_environ = NULL;
   char* const* old_environ = GetEnvironment();
   if (options.clear_environ)
     old_environ = &empty_environ;
@@ -446,7 +430,7 @@ Process LaunchProcess(const std::vector<std::string>& argv,
       // Set process' controlling terminal.
       if (HANDLE_EINTR(setsid()) != -1) {
         if (HANDLE_EINTR(
-                ioctl(options.ctrl_terminal_fd, TIOCSCTTY, nullptr)) == -1) {
+                ioctl(options.ctrl_terminal_fd, TIOCSCTTY, NULL)) == -1) {
           RAW_LOG(WARNING, "ioctl(TIOCSCTTY), ctrl terminal not set");
         }
       } else {
@@ -503,10 +487,7 @@ Process LaunchProcess(const std::vector<std::string>& argv,
       options.pre_exec_delegate->RunAsyncSafe();
     }
 
-    const char* executable_path = !options.real_path.empty() ?
-        options.real_path.value().c_str() : argv_cstr[0];
-
-    execvp(executable_path, argv_cstr.get());
+    execvp(argv_cstr[0], argv_cstr.get());
 
     RAW_LOG(ERROR, "LaunchProcess: failed to execvp:");
     RAW_LOG(ERROR, argv_cstr[0]);
@@ -530,6 +511,14 @@ void RaiseProcessToHighPriority() {
   // setpriority() or sched_getscheduler, but these all require extra rights.
 }
 
+// Return value used by GetAppOutputInternal to encapsulate the various exit
+// scenarios from the function.
+enum GetAppOutputInternalResult {
+  EXECUTE_FAILURE,
+  EXECUTE_SUCCESS,
+  GOT_MAX_OUTPUT,
+};
+
 // Executes the application specified by |argv| and wait for it to exit. Stores
 // the output (stdout) in |output|. If |do_search_path| is set, it searches the
 // path for the application; in that case, |envp| must be null, and it will use
@@ -537,14 +526,21 @@ void RaiseProcessToHighPriority() {
 // specify the path of the application, and |envp| will be used as the
 // environment. If |include_stderr| is true, includes stderr otherwise redirects
 // it to /dev/null.
-// The return value of the function indicates success or failure. In the case of
-// success, the application exit code will be returned in |*exit_code|, which
-// should be checked to determine if the application ran successfully.
-static bool GetAppOutputInternal(
+// If we successfully start the application and get all requested output, we
+// return GOT_MAX_OUTPUT, or if there is a problem starting or exiting
+// the application we return RUN_FAILURE. Otherwise we return EXECUTE_SUCCESS.
+// The GOT_MAX_OUTPUT return value exists so a caller that asks for limited
+// output can treat this as a success, despite having an exit code of SIG_PIPE
+// due to us closing the output pipe.
+// In the case of EXECUTE_SUCCESS, the application exit code will be returned
+// in |*exit_code|, which should be checked to determine if the application
+// ran successfully.
+static GetAppOutputInternalResult GetAppOutputInternal(
     const std::vector<std::string>& argv,
     char* const envp[],
     bool include_stderr,
     std::string* output,
+    size_t max_output,
     bool do_search_path,
     int* exit_code) {
   // Doing a blocking wait for another command to finish counts as IO.
@@ -556,7 +552,7 @@ static bool GetAppOutputInternal(
   int pipe_fd[2];
   pid_t pid;
   InjectiveMultimap fd_shuffle1, fd_shuffle2;
-  std::unique_ptr<char* []> argv_cstr(new char*[argv.size() + 1]);
+  scoped_ptr<char*[]> argv_cstr(new char*[argv.size() + 1]);
 
   fd_shuffle1.reserve(3);
   fd_shuffle2.reserve(3);
@@ -566,13 +562,13 @@ static bool GetAppOutputInternal(
   DCHECK(!do_search_path ^ !envp);
 
   if (pipe(pipe_fd) < 0)
-    return false;
+    return EXECUTE_FAILURE;
 
   switch (pid = fork()) {
     case -1:  // error
       close(pipe_fd[0]);
       close(pipe_fd[1]);
-      return false;
+      return EXECUTE_FAILURE;
     case 0:  // child
       {
         // DANGER: no calls to malloc or locks are allowed from now on:
@@ -609,7 +605,7 @@ static bool GetAppOutputInternal(
 
         for (size_t i = 0; i < argv.size(); i++)
           argv_cstr[i] = const_cast<char*>(argv[i].c_str());
-        argv_cstr[argv.size()] = nullptr;
+        argv_cstr[argv.size()] = NULL;
         if (do_search_path)
           execvp(argv_cstr[0], argv_cstr.get());
         else
@@ -624,21 +620,33 @@ static bool GetAppOutputInternal(
         close(pipe_fd[1]);
 
         output->clear();
+        char buffer[256];
+        size_t output_buf_left = max_output;
+        ssize_t bytes_read = 1;  // A lie to properly handle |max_output == 0|
+                                 // case in the logic below.
 
-        while (true) {
-          char buffer[256];
-          ssize_t bytes_read =
-              HANDLE_EINTR(read(pipe_fd[0], buffer, sizeof(buffer)));
+        while (output_buf_left > 0) {
+          bytes_read = HANDLE_EINTR(read(pipe_fd[0], buffer,
+                                    std::min(output_buf_left, sizeof(buffer))));
           if (bytes_read <= 0)
             break;
           output->append(buffer, bytes_read);
+          output_buf_left -= static_cast<size_t>(bytes_read);
         }
         close(pipe_fd[0]);
 
         // Always wait for exit code (even if we know we'll declare
         // GOT_MAX_OUTPUT).
         Process process(pid);
-        return process.WaitForExit(exit_code);
+        bool success = process.WaitForExit(exit_code);
+
+        // If we stopped because we read as much as we wanted, we return
+        // GOT_MAX_OUTPUT (because the child may exit due to |SIGPIPE|).
+        if (!output_buf_left && bytes_read > 0)
+          return GOT_MAX_OUTPUT;
+        else if (success)
+          return EXECUTE_SUCCESS;
+        return EXECUTE_FAILURE;
       }
   }
 }
@@ -648,27 +656,44 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
 }
 
 bool GetAppOutput(const std::vector<std::string>& argv, std::string* output) {
-  // Run |execve()| with the current environment.
+  // Run |execve()| with the current environment and store "unlimited" data.
   int exit_code;
-  bool result =
-      GetAppOutputInternal(argv, nullptr, false, output, true, &exit_code);
-  return result && exit_code == EXIT_SUCCESS;
+  GetAppOutputInternalResult result = GetAppOutputInternal(
+      argv, NULL, false, output, std::numeric_limits<std::size_t>::max(), true,
+      &exit_code);
+  return result == EXECUTE_SUCCESS && exit_code == EXIT_SUCCESS;
 }
 
 bool GetAppOutputAndError(const CommandLine& cl, std::string* output) {
-  // Run |execve()| with the current environment.
+  // Run |execve()| with the current environment and store "unlimited" data.
   int exit_code;
-  bool result =
-      GetAppOutputInternal(cl.argv(), nullptr, true, output, true, &exit_code);
-  return result && exit_code == EXIT_SUCCESS;
+  GetAppOutputInternalResult result = GetAppOutputInternal(
+      cl.argv(), NULL, true, output, std::numeric_limits<std::size_t>::max(),
+      true, &exit_code);
+  return result == EXECUTE_SUCCESS && exit_code == EXIT_SUCCESS;
+}
+
+// TODO(viettrungluu): Conceivably, we should have a timeout as well, so we
+// don't hang if what we're calling hangs.
+bool GetAppOutputRestricted(const CommandLine& cl,
+                            std::string* output, size_t max_output) {
+  // Run |execve()| with the empty environment.
+  char* const empty_environ = NULL;
+  int exit_code;
+  GetAppOutputInternalResult result = GetAppOutputInternal(
+      cl.argv(), &empty_environ, false, output, max_output, false, &exit_code);
+  return result == GOT_MAX_OUTPUT || (result == EXECUTE_SUCCESS &&
+                                      exit_code == EXIT_SUCCESS);
 }
 
 bool GetAppOutputWithExitCode(const CommandLine& cl,
                               std::string* output,
                               int* exit_code) {
-  // Run |execve()| with the current environment.
-  return GetAppOutputInternal(cl.argv(), nullptr, false, output, true,
-                              exit_code);
+  // Run |execve()| with the current environment and store "unlimited" data.
+  GetAppOutputInternalResult result = GetAppOutputInternal(
+      cl.argv(), NULL, false, output, std::numeric_limits<std::size_t>::max(),
+      true, exit_code);
+  return result == EXECUTE_SUCCESS;
 }
 
 #endif  // !defined(OS_NACL_NONSFI)
@@ -711,9 +736,9 @@ NOINLINE pid_t CloneAndLongjmpInChild(unsigned long flags,
   // internal pid cache. The libc interface unfortunately requires
   // specifying a new stack, so we use setjmp/longjmp to emulate
   // fork-like behavior.
-  char stack_buf[PTHREAD_STACK_MIN] ALIGNAS(16);
+  char stack_buf[PTHREAD_STACK_MIN];
 #if defined(ARCH_CPU_X86_FAMILY) || defined(ARCH_CPU_ARM_FAMILY) || \
-    defined(ARCH_CPU_MIPS_FAMILY)
+    defined(ARCH_CPU_MIPS64_FAMILY) || defined(ARCH_CPU_MIPS_FAMILY)
   // The stack grows downward.
   void* stack = stack_buf + sizeof(stack_buf);
 #else
@@ -747,7 +772,7 @@ pid_t ForkWithFlags(unsigned long flags, pid_t* ptid, pid_t* ctid) {
 #if defined(ARCH_CPU_X86_64)
     return syscall(__NR_clone, flags, nullptr, ptid, ctid, nullptr);
 #elif defined(ARCH_CPU_X86) || defined(ARCH_CPU_ARM_FAMILY) || \
-    defined(ARCH_CPU_MIPS_FAMILY)
+    defined(ARCH_CPU_MIPS_FAMILY) || defined(ARCH_CPU_MIPS64_FAMILY)
     // CONFIG_CLONE_BACKWARDS defined.
     return syscall(__NR_clone, flags, nullptr, ptid, nullptr, ctid);
 #else

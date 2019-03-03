@@ -8,13 +8,12 @@
 
 #include <stdint.h>
 
-#include <memory>
-
 #include "base/files/file_path.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/i18n/string_compare.h"
 #include "base/logging.h"
 #include "base/macros.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
@@ -57,10 +56,10 @@ class IllegalCharacters {
   ~IllegalCharacters() { }
 
   // set of characters considered invalid anywhere inside a filename.
-  std::unique_ptr<icu::UnicodeSet> illegal_anywhere_;
+  scoped_ptr<icu::UnicodeSet> illegal_anywhere_;
 
   // set of characters considered invalid at either end of a filename.
-  std::unique_ptr<icu::UnicodeSet> illegal_at_ends_;
+  scoped_ptr<icu::UnicodeSet> illegal_at_ends_;
 
   DISALLOW_COPY_AND_ASSIGN(IllegalCharacters);
 };
@@ -150,8 +149,7 @@ bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
   UErrorCode error_code = U_ZERO_ERROR;
   // Use the default collator. The default locale should have been properly
   // set by the time this constructor is called.
-  std::unique_ptr<icu::Collator> collator(
-      icu::Collator::createInstance(error_code));
+  scoped_ptr<icu::Collator> collator(icu::Collator::createInstance(error_code));
   DCHECK(U_SUCCESS(error_code));
   // Make it case-sensitive.
   collator->setStrength(icu::Collator::TERTIARY);

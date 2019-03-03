@@ -12,7 +12,6 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.support.multidex.MultiDex;
 
-import org.chromium.base.BuildConfig;
 import org.chromium.base.Log;
 import org.chromium.base.VisibleForTesting;
 
@@ -48,7 +47,7 @@ public class ChromiumMultiDexInstaller {
      */
     @VisibleForTesting
     public static void install(Context context) {
-        if (!BuildConfig.isMultidexEnabled()) return;
+        if (!ChromiumMultiDex.isMultidexEnabled()) return;
 
         // TODO(jbudorick): Back out this version check once support for K & below works.
         // http://crbug.com/512357

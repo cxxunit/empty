@@ -6,54 +6,34 @@
 
 #include "base/logging.h"
 
-#if defined(USE_TCMALLOC)
-#include "third_party/tcmalloc/chromium/src/gperftools/heap-profiler.h"
-#include "third_party/tcmalloc/chromium/src/gperftools/malloc_extension.h"
-#include "third_party/tcmalloc/chromium/src/gperftools/malloc_hook.h"
-#endif
-
 namespace base {
 namespace allocator {
 
+namespace {
+ReleaseFreeMemoryFunction g_release_free_memory_function = nullptr;
+GetNumericPropertyFunction g_get_numeric_property_function = nullptr;
+}
+
 void ReleaseFreeMemory() {
-#if defined(USE_TCMALLOC)
-  ::MallocExtension::instance()->ReleaseFreeMemory();
-#endif
+  if (g_release_free_memory_function)
+    g_release_free_memory_function();
 }
 
 bool GetNumericProperty(const char* name, size_t* value) {
-#if defined(USE_TCMALLOC)
-  return ::MallocExtension::instance()->GetNumericProperty(name, value);
-#endif
-  return false;
+  return g_get_numeric_property_function &&
+         g_get_numeric_property_function(name, value);
 }
 
-bool IsHeapProfilerRunning() {
-#if defined(USE_TCMALLOC)
-  return ::IsHeapProfilerRunning();
-#endif
-  return false;
+void SetReleaseFreeMemoryFunction(
+    ReleaseFreeMemoryFunction release_free_memory_function) {
+  DCHECK(!g_release_free_memory_function);
+  g_release_free_memory_function = release_free_memory_function;
 }
 
-void SetHooks(AllocHookFunc alloc_hook, FreeHookFunc free_hook) {
-// TODO(sque): Use allocator shim layer instead.
-#if defined(USE_TCMALLOC)
-  // Make sure no hooks get overwritten.
-  auto prev_alloc_hook = MallocHook::SetNewHook(alloc_hook);
-  if (alloc_hook)
-    DCHECK(!prev_alloc_hook);
-
-  auto prev_free_hook = MallocHook::SetDeleteHook(free_hook);
-  if (free_hook)
-    DCHECK(!prev_free_hook);
-#endif
-}
-
-int GetCallStack(void** stack, int max_stack_size) {
-#if defined(USE_TCMALLOC)
-  return MallocHook::GetCallerStackTrace(stack, max_stack_size, 0);
-#endif
-  return 0;
+void SetGetNumericPropertyFunction(
+    GetNumericPropertyFunction get_numeric_property_function) {
+  DCHECK(!g_get_numeric_property_function);
+  g_get_numeric_property_function = get_numeric_property_function;
 }
 
 }  // namespace allocator

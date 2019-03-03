@@ -9,7 +9,6 @@ import android.os.SystemClock;
 
 import org.chromium.base.Log;
 import org.chromium.base.PathUtils;
-import org.chromium.base.annotations.SuppressFBWarnings;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -34,16 +33,16 @@ class ModernLinker extends Linker {
     private static final String TAG = "LibraryLoader";
 
     // Becomes true after linker initialization.
-    private boolean mInitialized;
+    private boolean mInitialized = false;
 
     // Becomes true to indicate this process needs to wait for a shared RELRO in LibraryLoad().
-    private boolean mWaitForSharedRelros;
+    private boolean mWaitForSharedRelros = false;
 
     // The map of all RELRO sections either created or used in this process.
-    private HashMap<String, LibInfo> mSharedRelros;
+    private HashMap<String, LibInfo> mSharedRelros = null;
 
     // Cached Bundle representation of the RELRO sections map for transfer across processes.
-    private Bundle mSharedRelrosBundle;
+    private Bundle mSharedRelrosBundle = null;
 
     // Set to true if this runs in the browser process. Disabled by initServiceProcess().
     private boolean mInBrowserProcess = true;
@@ -57,10 +56,13 @@ class ModernLinker extends Linker {
     private long mCurrentLoadAddress = -1;
 
     // Becomes true once prepareLibraryLoad() has been called.
-    private boolean mPrepareLibraryLoadCalled;
+    private boolean mPrepareLibraryLoadCalled = false;
 
     // The map of libraries that are currently loaded in this process.
-    private HashMap<String, LibInfo> mLoadedLibraries;
+    private HashMap<String, LibInfo> mLoadedLibraries = null;
+
+    // The directory used to hold shared RELRO data files. Set up by prepareLibraryLoad().
+    private String mDataDirectory = null;
 
     // Private singleton constructor, and singleton factory method.
     private ModernLinker() { }
@@ -119,6 +121,9 @@ class ModernLinker extends Linker {
             // Create an empty loaded libraries map.
             mLoadedLibraries = new HashMap<String, LibInfo>();
 
+            // Retrieve the data directory from base.
+            mDataDirectory = PathUtils.getDataDirectory(null);
+
             // Start the current load address at the base load address.
             mCurrentLoadAddress = mBaseLoadAddress;
 
@@ -154,7 +159,6 @@ class ModernLinker extends Linker {
 
     // Used internally to wait for shared RELROs. Returns once useSharedRelros() has been
     // called to supply a valid shared RELROs bundle.
-    @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE")
     private void waitForSharedRelrosLocked() {
         if (DEBUG) {
             Log.i(TAG, "waitForSharedRelros called");
@@ -168,12 +172,17 @@ class ModernLinker extends Linker {
 
         // Wait until notified by useSharedRelros() that shared RELROs have arrived.
         long startTime = DEBUG ? SystemClock.uptimeMillis() : 0;
-        while (mSharedRelros == null) {
-            try {
-                mLock.wait();
-            } catch (InterruptedException e) {
-                // Restore the thread's interrupt status.
-                Thread.currentThread().interrupt();
+        // Note: The additional synchronized block is present only to silence Findbugs.
+        // Without it, Findbugs reports a false positive:
+        // RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE: Redundant nullcheck of value known to be null
+        synchronized (mLock) {
+            while (mSharedRelros == null) {
+                try {
+                    mLock.wait();
+                } catch (InterruptedException e) {
+                    // Restore the thread's interrupt status.
+                    Thread.currentThread().interrupt();
+                }
             }
         }
 
@@ -388,7 +397,7 @@ class ModernLinker extends Linker {
                 // We are in the browser, and with a current load address that indicates that
                 // there is enough address space for shared RELRO to operate. Create the
                 // shared RELRO, and store it in the map.
-                String relroPath = PathUtils.getDataDirectory() + "/RELRO:" + libFilePath;
+                String relroPath = mDataDirectory + "/RELRO:" + libFilePath;
                 if (nativeCreateSharedRelro(dlopenExtPath,
                                             mCurrentLoadAddress, relroPath, libInfo)) {
                     mSharedRelros.put(dlopenExtPath, libInfo);

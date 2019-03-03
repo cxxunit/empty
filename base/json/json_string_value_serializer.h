@@ -47,10 +47,8 @@ class BASE_EXPORT JSONStringValueSerializer : public base::ValueSerializer {
 class BASE_EXPORT JSONStringValueDeserializer : public base::ValueDeserializer {
  public:
   // This retains a reference to the contents of |json_string|, so the data
-  // must outlive the JSONStringValueDeserializer. |options| is a bitmask of
-  // JSONParserOptions.
-  explicit JSONStringValueDeserializer(const base::StringPiece& json_string,
-                                       int options = 0);
+  // must outlive the JSONStringValueDeserializer.
+  explicit JSONStringValueDeserializer(const base::StringPiece& json_string);
 
   ~JSONStringValueDeserializer() override;
 
@@ -61,13 +59,18 @@ class BASE_EXPORT JSONStringValueDeserializer : public base::ValueDeserializer {
   // If |error_message| is non-null, it will be filled in with a formatted
   // error message including the location of the error if appropriate.
   // The caller takes ownership of the returned value.
-  std::unique_ptr<base::Value> Deserialize(int* error_code,
-                                           std::string* error_message) override;
+  scoped_ptr<base::Value> Deserialize(int* error_code,
+                                      std::string* error_message) override;
+
+  void set_allow_trailing_comma(bool new_value) {
+    allow_trailing_comma_ = new_value;
+  }
 
  private:
   // Data is owned by the caller of the constructor.
   base::StringPiece json_string_;
-  const int options_;
+  // If true, deserialization will allow trailing commas.
+  bool allow_trailing_comma_;
 
   DISALLOW_COPY_AND_ASSIGN(JSONStringValueDeserializer);
 };

@@ -48,6 +48,19 @@ class GetFileInfoHelper {
   DISALLOW_COPY_AND_ASSIGN(GetFileInfoHelper);
 };
 
+File::Error DeleteAdapter(const FilePath& file_path, bool recursive) {
+  if (!PathExists(file_path)) {
+    return File::FILE_ERROR_NOT_FOUND;
+  }
+  if (!base::DeleteFile(file_path, recursive)) {
+    if (!recursive && !base::IsDirectoryEmpty(file_path)) {
+      return File::FILE_ERROR_NOT_EMPTY;
+    }
+    return File::FILE_ERROR_FAILED;
+  }
+  return File::FILE_OK;
+}
+
 }  // namespace
 
 // Retrieves the information about a file. It is invalid to pass NULL for the
@@ -62,6 +75,17 @@ bool FileUtilProxy::GetFileInfo(
       Bind(&GetFileInfoHelper::RunWorkForFilePath,
            Unretained(helper), file_path),
       Bind(&GetFileInfoHelper::Reply, Owned(helper), callback));
+}
+
+// static
+bool FileUtilProxy::DeleteFile(TaskRunner* task_runner,
+                               const FilePath& file_path,
+                               bool recursive,
+                               const StatusCallback& callback) {
+  return base::PostTaskAndReplyWithResult(
+      task_runner, FROM_HERE,
+      Bind(&DeleteAdapter, file_path, recursive),
+      callback);
 }
 
 // static
